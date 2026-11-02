@@ -4,12 +4,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.sun.net.httpserver.HttpServer;
-
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.MessageDigest;
@@ -97,27 +97,12 @@ public class OsCatalogAndDownloaderTest {
         for (int i = 0; i < payload.length; i++) payload[i] = (byte) (i * 31);
         String sha = Downloader.hex(MessageDigest.getInstance("SHA-256").digest(payload));
 
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/old.iso", ex -> {
-            ex.getResponseHeaders().add("Location", "/new.iso");
-            ex.sendResponseHeaders(302, -1);
-            ex.close();
-        });
-        server.createContext("/new.iso", ex -> {
-            ex.sendResponseHeaders(200, payload.length);
-            try (OutputStream o = ex.getResponseBody()) {
-                o.write(payload);
-            }
-        });
-        server.createContext("/list.txt", ex -> {
-            byte[] b = "hello list".getBytes(StandardCharsets.UTF_8);
-            ex.sendResponseHeaders(200, b.length);
-            try (OutputStream o = ex.getResponseBody()) {
-                o.write(b);
-            }
-        });
+        TinyHttp server = new TinyHttp();
+        server.route("/old.iso", 302, "/new.iso", null);
+        server.route("/new.iso", 200, null, payload);
+        server.route("/list.txt", 200, null, "hello list".getBytes(StandardCharsets.UTF_8));
         server.start();
-        String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        String base = "http://127.0.0.1:" + server.port();
         File dir = Files.createTempDirectory("dl").toFile();
         try {
             assertEquals("hello list", Downloader.fetchText(base + "/list.txt"));
@@ -157,7 +142,64 @@ public class OsCatalogAndDownloaderTest {
                 assertTrue(expected.getMessage().contains("404"));
             }
         } finally {
-            server.stop(0);
+            server.stop();
+        }
+    }
+
+    /** Minimal HTTP/1.0 server for tests (the JDK's HttpServer is not available in Android unit tests). */
+    static final class TinyHttp {
+        private final Map<String, Object[]> routes = new HashMap<>();
+        private ServerSocket socket;
+        private Thread thread;
+
+        void route(String path, int code, String location, byte[] body) {
+            routes.put(path, new Object[]{code, location, body});
+        }
+
+        void start() throws IOException {
+            socket = new ServerSocket(0);
+            thread = new Thread(() -> {
+                while (!socket.isClosed()) {
+                    try (Socket s = socket.accept()) {
+                        handle(s);
+                    } catch (IOException ignored) {
+                        // closed
+                    }
+                }
+            });
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        int port() {
+            return socket.getLocalPort();
+        }
+
+        void stop() throws IOException {
+            socket.close();
+        }
+
+        private void handle(Socket s) throws IOException {
+            InputStream in = s.getInputStream();
+            StringBuilder head = new StringBuilder();
+            int b;
+            while ((b = in.read()) >= 0) {
+                head.append((char) b);
+                if (head.length() >= 4 && head.substring(head.length() - 4).equals("\r\n\r\n")) break;
+            }
+            String path = head.toString().split(" ")[1];
+            Object[] r = routes.get(path);
+            OutputStream out = s.getOutputStream();
+            if (r == null) {
+                out.write("HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+            } else if ((int) r[0] == 302) {
+                out.write(("HTTP/1.0 302 Found\r\nLocation: " + r[1] + "\r\nContent-Length: 0\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+            } else {
+                byte[] body = (byte[]) r[2];
+                out.write(("HTTP/1.0 200 OK\r\nContent-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+                out.write(body);
+            }
+            out.flush();
         }
     }
 }
