@@ -18,11 +18,24 @@ android {
         }
     }
 
+    // One fixed key for every build, so new versions install over old ones without losing machines.
+    // (The key is stored in the repository: fine for a personal app, not for publishing on a store.)
+    signingConfigs {
+        sarab {
+            storeFile = file('sarab-release.jks')
+            storePassword = 'sarabvm123'
+            keyAlias = 'sarab'
+            keyPassword = 'sarabvm123'
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.sarab
+        }
         release {
             minifyEnabled = false
-            // Signed with the debug key so the APK installs directly. Use your own key to publish.
-            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.sarab
         }
     }
 
