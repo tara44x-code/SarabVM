@@ -53,6 +53,36 @@ public class Batch2CoreTest {
     }
 
     @Test
+    public void soundUsesWavPipeAndHda() {
+        VmConfig c = new VmConfig();
+        c.name = "s";
+        c.isoPath = "/a.iso";
+        assertFalse(String.join(" ", builder.build(c, new EmulatorSettings(), 0, "/cache/a.pipe")).contains("audiodev"));
+        c.sound = true;
+        String all = String.join(" ", builder.build(c, new EmulatorSettings(), 0, "/cache/a.pipe"));
+        assertTrue(all.contains("-audiodev wav,id=snd0,path=/cache/a.pipe"));
+        assertTrue(all.contains("-device intel-hda -device hda-output,audiodev=snd0"));
+        assertFalse("no pipe → no sound args", String.join(" ", builder.build(c, new EmulatorSettings(), 0)).contains("audiodev"));
+        assertTrue(VmConfig.fromProperties(c.toProperties()).sound);
+    }
+
+    @Test
+    public void wavHeaderParsing() {
+        byte[] h = new byte[44];
+        h[0] = 'R'; h[1] = 'I'; h[2] = 'F'; h[3] = 'F';
+        h[8] = 'W'; h[9] = 'A'; h[10] = 'V'; h[11] = 'E';
+        h[22] = 2;                                   // channels
+        h[24] = (byte) 0x44; h[25] = (byte) 0xAC;    // 44100
+        h[34] = 16;                                  // bits
+        WavHeader w = WavHeader.parse(h);
+        assertEquals(2, w.channels);
+        assertEquals(44100, w.sampleRate);
+        assertEquals(16, w.bits);
+        h[0] = 'X';
+        assertEquals(null, WavHeader.parse(h));
+    }
+
+    @Test
     public void snapshotLoadOnlyWithDisk() {
         VmConfig c = new VmConfig();
         c.name = "w";

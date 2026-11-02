@@ -33,6 +33,10 @@ public final class Lang {
     }
 
     static {
+        m("الصوت", "Sound");
+        m("تشغيل صوت النظام على الهاتف (تجريبي)", "Play the system's sound on the phone (experimental)");
+        m("يضيف بطاقة صوت للنظام. يعمل مع لينكس وويندوز الكامل. Windows PE غالبًا بدون تعريف صوت. يستهلك جزءًا من سرعة المعالج.", "Adds a sound card to the system. Works with Linux and full Windows; Windows PE usually has no sound driver. Uses some CPU.");
+        m("تعذر تجهيز الصوت: ", "Could not prepare sound: ");
         m("المظهر", "Appearance");
         m("داكن", "Dark");
         m("فاتح", "Light");

@@ -68,6 +68,14 @@ public final class QemuCommandBuilder {
 
     /** Full command line to start the machine with its screen on VNC display {@code display}. */
     public List<String> build(VmConfig c, EmulatorSettings s, int display) {
+        return build(c, s, display, null);
+    }
+
+    /**
+     * @param audioPipe when the machine has sound: a named pipe the app reads. QEMU's "wav"
+     *                  backend writes the sound card's output there as a WAV stream.
+     */
+    public List<String> build(VmConfig c, EmulatorSettings s, int display, String audioPipe) {
         List<String> a = new ArrayList<>();
         a.add(binaryFor(c.arch).getAbsolutePath());
         a.add("-L");
@@ -87,6 +95,14 @@ public final class QemuCommandBuilder {
             addX86(a, c, s);
         }
 
+        if (c.sound && audioPipe != null) {
+            a.add("-audiodev");
+            a.add("wav,id=snd0,path=" + escape(audioPipe));
+            a.add("-device");
+            a.add("intel-hda");
+            a.add("-device");
+            a.add("hda-output,audiodev=snd0");
+        }
         if (c.snapshotSaved && c.canSaveState()) {
             a.add("-loadvm");
             a.add(VmConfig.SNAPSHOT_NAME);

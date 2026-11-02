@@ -35,6 +35,16 @@ jobs:
       - name: Download QEMU for Android (Termux packages)
         run: python3 scripts/fetch_qemu.py
 
+      - name: Report QEMU features (sound devices, wav backend)
+        run: |
+          for f in app/src/main/jniLibs/arm64-v8a/libqemu-system-x86_64.so app/src/main/jniLibs/arm64-v8a/libqemu-system-aarch64.so; do
+            echo "== $f"
+            for w in intel-hda hda-output wavaudio audio_wav vvfat usb-storage; do
+              if grep -aq "$w" "$f"; then echo "  has $w"; else echo "  MISSING $w"; fi
+            done
+          done
+          ls app/src/main/jniLibs/arm64-v8a | grep -i -E "audio|snd|pulse" || echo "no separate audio libs"
+
       - name: Run unit tests and build the APK
         run: |
           chmod +x gradlew

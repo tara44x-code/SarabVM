@@ -50,6 +50,8 @@ public final class VmConfig {
     public boolean snapshotSaved;
     /** Port forwarding "phonePort:guestPort, …", e.g. "8080:80, 2222:22". */
     public String portForwards = "";
+    /** Sound card in the machine; the app plays what it outputs (experimental). */
+    public boolean sound;
 
     public static final String SNAPSHOT_NAME = "sarab";
 
@@ -92,6 +94,7 @@ public final class VmConfig {
         p.setProperty("shareWritable", Boolean.toString(shareWritable));
         p.setProperty("snapshotSaved", Boolean.toString(snapshotSaved));
         p.setProperty("portForwards", portForwards == null ? "" : portForwards);
+        p.setProperty("sound", Boolean.toString(sound));
         return p;
     }
 
@@ -111,6 +114,7 @@ public final class VmConfig {
         c.shareWritable = Boolean.parseBoolean(p.getProperty("shareWritable", "false"));
         c.snapshotSaved = Boolean.parseBoolean(p.getProperty("snapshotSaved", "false"));
         c.portForwards = p.getProperty("portForwards", "");
+        c.sound = Boolean.parseBoolean(p.getProperty("sound", "false"));
         return c;
     }
 

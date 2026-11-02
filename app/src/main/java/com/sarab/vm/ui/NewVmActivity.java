@@ -261,6 +261,18 @@ public final class NewVmActivity extends Activity {
         diskNote = Ui.text(this, "", 12, Ui.MUTED, false);
         form.addView(diskNote, Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
 
+        form.addView(sectionLabel(Lang.t("الصوت")));
+        LinearLayout soundBox = Ui.column(this);
+        soundBox.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 10));
+        soundBox.setBackground(Ui.rounded(this, Ui.SURFACE, 18, Ui.BORDER, 1));
+        Switch soundSwitch = new Switch(this);
+        soundSwitch.setChecked(config.sound);
+        soundSwitch.setOnCheckedChangeListener((b, on) -> config.sound = on);
+        soundBox.addView(switchRow(Lang.t("تشغيل صوت النظام على الهاتف (تجريبي)"), soundSwitch));
+        soundBox.addView(Ui.text(this, Lang.t("يضيف بطاقة صوت للنظام. يعمل مع لينكس وويندوز الكامل. Windows PE غالبًا بدون تعريف صوت. يستهلك جزءًا من سرعة المعالج."),
+                12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
+        form.addView(soundBox);
+
         form.addView(sectionLabel(Lang.t("تحويل المنافذ (اختياري)")));
         portsField = new EditText(this);
         portsField.setSingleLine(true);

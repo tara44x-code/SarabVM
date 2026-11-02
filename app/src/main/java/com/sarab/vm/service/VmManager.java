@@ -48,6 +48,7 @@ public final class VmManager {
         public final long startedAt;
         final Process process;
         final File logFile;
+        AudioPipe audio;
 
         RunningVm(VmConfig config, int display, Process process, File logFile) {
             this.config = config;
@@ -166,7 +167,12 @@ public final class VmManager {
         if (c.shareFolder) prepareSharedFolder(settings);
         int display = allocateDisplay();
         QemuCommandBuilder builder = env.builder();
-        List<String> cmd = builder.build(c, settings, display);
+        AudioPipe audio = null;
+        if (c.sound) {
+            audio = new AudioPipe(new File(app.getCacheDir(), "audio-" + display + ".pipe"));
+            audio.start();
+        }
+        List<String> cmd = builder.build(c, settings, display, audio == null ? null : audio.path());
         if (c.snapshotSaved) {
             // a saved state is resumed once; afterwards the machine moves on from it
             c.snapshotSaved = false;
@@ -181,9 +187,16 @@ public final class VmManager {
         ProcessBuilder pb = new ProcessBuilder(cmd);
         configureEnv(pb);
         pb.redirectErrorStream(true);
-        Process p = pb.start();
+        Process p;
+        try {
+            p = pb.start();
+        } catch (IOException e) {
+            if (audio != null) audio.stop();
+            throw e;
+        }
 
         RunningVm vm = new RunningVm(c, display, p, logFile);
+        vm.audio = audio;
         running.put(c.id, vm);
         exits.remove(c.id);
         synchronized (logs) {
@@ -303,6 +316,7 @@ public final class VmManager {
                 Deque<String> d = logs.remove(vm.config.id);
                 tail = d == null ? "" : String.join("\n", d);
             }
+            if (vm.audio != null) vm.audio.stop();
             exits.put(vm.config.id, new ExitInfo(code, tail, System.currentTimeMillis() - vm.startedAt));
             running.remove(vm.config.id);
             notifyChanged();
