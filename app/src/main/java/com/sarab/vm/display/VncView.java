@@ -428,7 +428,7 @@ public final class VncView extends View implements RfbClient.Listener {
                 | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
                 | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN
-                | EditorInfo.IME_ACTION_NONE;
+                | EditorInfo.IME_ACTION_NONE | EditorInfo.IME_FLAG_NO_ENTER_ACTION;
         return new BaseInputConnection(this, false) {
             @Override
             public boolean commitText(CharSequence text, int newCursorPosition) {
@@ -444,6 +444,12 @@ public final class VncView extends View implements RfbClient.Listener {
             }
 
             @Override
+            public boolean performEditorAction(int actionCode) {
+                pressKey(Keysyms.RETURN);
+                return true;
+            }
+
+            @Override
             public boolean deleteSurroundingText(int beforeLength, int afterLength) {
                 for (int i = 0; i < Math.max(1, beforeLength); i++) pressKey(Keysyms.BACKSPACE);
                 return true;
@@ -451,13 +457,27 @@ public final class VncView extends View implements RfbClient.Listener {
         };
     }
 
+    private Runnable nonLatinListener;
+
+    /** Called (once per typing burst) when letters arrive that the guest's US keyboard cannot type. */
+    public void setNonLatinListener(Runnable r) {
+        nonLatinListener = r;
+    }
+
     private void typeText(CharSequence text) {
         String s = text.toString();
+        boolean nonLatin = false;
         for (int i = 0; i < s.length(); ) {
             int cp = s.codePointAt(i);
             i += Character.charCount(cp);
-            pressKey(Keysyms.forChar(cp));
+            int keysym = Keysyms.forChar(cp);
+            if (keysym >= 0x01000000) {
+                nonLatin = true;
+                continue;
+            }
+            pressKey(keysym);
         }
+        if (nonLatin && nonLatinListener != null) nonLatinListener.run();
     }
 
     @Override

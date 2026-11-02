@@ -29,6 +29,7 @@ public class QemuCommandBuilderTest {
     public void windowsIsoOnX86() {
         VmConfig c = new VmConfig();
         c.name = "Windows PE";
+        c.osType = VmConfig.OsType.WINDOWS;
         c.arch = VmConfig.Arch.X86_64;
         c.ramMb = 2048;
         c.cpus = 2;
@@ -52,6 +53,7 @@ public class QemuCommandBuilderTest {
         assertTrue(all.contains("usb-tablet"));
         assertTrue(all.contains("e1000,netdev=net0"));
         assertFalse("no disk configured", all.contains("media=disk"));
+        assertEquals("base=localtime", after(a, "-rtc"));
     }
 
     @Test
@@ -68,6 +70,7 @@ public class QemuCommandBuilderTest {
         assertEquals("Ubuntu  test", after(a, "-name"));
         assertTrue("commas doubled", all.contains("file=/files/disks/u,,1.qcow2,if=ide,index=0,media=disk,format=qcow2"));
         assertEquals("none", after(a, "-nic"));
+        assertFalse("linux keeps UTC clock", a.contains("-rtc"));
         assertFalse(all.contains("-netdev"));
         assertEquals("127.0.0.1:0", after(a, "-vnc"));
     }

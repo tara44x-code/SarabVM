@@ -106,6 +106,10 @@ public final class QemuCommandBuilder {
         a.add("-usb");
         a.add("-device");
         a.add("usb-tablet");
+        if (c.osType == VmConfig.OsType.WINDOWS) {
+            a.add("-rtc");
+            a.add("base=localtime"); // Windows expects the hardware clock in local time
+        }
 
         boolean hasDisk = notEmpty(c.diskPath);
         if (hasDisk) {

@@ -56,6 +56,7 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
     private boolean keyboardShown;
     private boolean fullscreen;
     private boolean exitHandled;
+    private long lastLanguageHint;
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -83,6 +84,14 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
         vnc.setHaptics(new SettingsStore(this).load().haptics);
         vnc.setCallback(this);
         vnc.setStickyListener(this::refreshSticky);
+        vnc.setNonLatinListener(() -> {
+            long now = System.currentTimeMillis();
+            if (now - lastLanguageHint > 8000) {
+                lastLanguageHint = now;
+                Toast.makeText(this, "بدّل كيبورد الهاتف إلى الإنجليزية، فالنظام الوهمي يستقبل الحروف الإنجليزية فقط",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
         vnc.connect(vm.vncPort());
     }
 
@@ -164,6 +173,9 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
                 new int[]{Keysyms.function(1), Keysyms.function(2), Keysyms.function(5), Keysyms.function(8), Keysyms.function(11), Keysyms.function(12)}));
         keyBar.addView(keyRow(new String[]{"Home", "End", "←", "↑", "↓", "→"},
                 new int[]{Keysyms.HOME, Keysyms.END, Keysyms.LEFT, Keysyms.UP, Keysyms.DOWN, Keysyms.RIGHT}));
+        keyBar.addView(keyRow(new String[]{"⌫", "Space", "Enter ↵"},
+                new int[]{Keysyms.BACKSPACE, Keysyms.SPACE, Keysyms.RETURN},
+                new float[]{1f, 2f, 3f}));
         keyBar.setVisibility(View.GONE);
         root.addView(keyBar);
 
@@ -183,6 +195,12 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
 
     /** Codes -1/-2/-3 are the sticky Ctrl / Alt / Win buttons. */
     private LinearLayout keyRow(String[] labels, int[] keys) {
+        float[] weights = new float[labels.length];
+        java.util.Arrays.fill(weights, 1f);
+        return keyRow(labels, keys, weights);
+    }
+
+    private LinearLayout keyRow(String[] labels, int[] keys, float[] weights) {
         LinearLayout row = Ui.row(this);
         row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         for (int i = 0; i < labels.length; i++) {
@@ -202,7 +220,7 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
             } else {
                 k.setOnClickListener(v -> vnc.pressKey(key));
             }
-            LinearLayout.LayoutParams p = Ui.weight(1);
+            LinearLayout.LayoutParams p = Ui.weight(weights[i]);
             p.height = Ui.dp(this, 44);
             p.setMargins(Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3));
             row.addView(k, p);
