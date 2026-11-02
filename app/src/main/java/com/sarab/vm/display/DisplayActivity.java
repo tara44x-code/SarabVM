@@ -388,6 +388,10 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
                 .setTitle("توقّف النظام بخطأ (رمز " + info.exitCode + ")")
                 .setView(sv)
                 .setPositiveButton("حسنًا", (d, w) -> finish())
+                .setNeutralButton("السجل الكامل", (d, w) -> {
+                    com.sarab.vm.ui.LogActivity.open(this, vm.config.id);
+                    finish();
+                })
                 .setOnCancelListener(d -> finish())
                 .show();
     }

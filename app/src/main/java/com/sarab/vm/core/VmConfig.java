@@ -42,6 +42,10 @@ public final class VmConfig {
     /** Size used when the disk is first created; 0 means "no hard disk". */
     public int diskSizeGb = 16;
     public long createdAt;
+    /** Show the phone's shared folder inside the machine as an extra disk. */
+    public boolean shareFolder;
+    /** Let the machine write into the shared folder (QEMU calls this experimental). */
+    public boolean shareWritable;
 
     public VmConfig() {
         this.id = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -73,6 +77,8 @@ public final class VmConfig {
         p.setProperty("diskPath", diskPath == null ? "" : diskPath);
         p.setProperty("diskSizeGb", Integer.toString(diskSizeGb));
         p.setProperty("createdAt", Long.toString(createdAt));
+        p.setProperty("shareFolder", Boolean.toString(shareFolder));
+        p.setProperty("shareWritable", Boolean.toString(shareWritable));
         return p;
     }
 
@@ -88,6 +94,8 @@ public final class VmConfig {
         c.diskPath = p.getProperty("diskPath", "");
         c.diskSizeGb = parseInt(p.getProperty("diskSizeGb"), 0);
         c.createdAt = parseLong(p.getProperty("createdAt"), c.createdAt);
+        c.shareFolder = Boolean.parseBoolean(p.getProperty("shareFolder", "false"));
+        c.shareWritable = Boolean.parseBoolean(p.getProperty("shareWritable", "false"));
         return c;
     }
 

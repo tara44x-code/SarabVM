@@ -10,4 +10,6 @@ public final class EmulatorSettings {
     public boolean network = true;
     public boolean haptics = true;
     public int defaultDiskGb = 16;
+    /** Absolute path of the phone folder shared with machines (see VmConfig.shareFolder). */
+    public String sharedFolderPath = "/storage/emulated/0/Sarab";
 }

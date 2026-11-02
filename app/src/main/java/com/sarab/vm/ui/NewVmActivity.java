@@ -20,6 +20,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,7 +29,6 @@ import com.sarab.vm.core.VmConfig;
 import com.sarab.vm.data.ImageStore;
 import com.sarab.vm.data.SettingsStore;
 import com.sarab.vm.data.VmRepository;
-import com.sarab.vm.display.DisplayActivity;
 import com.sarab.vm.service.VmManager;
 import com.sarab.vm.util.Ui;
 
@@ -250,6 +250,28 @@ public final class NewVmActivity extends Activity {
         diskNote = Ui.text(this, "", 12, Ui.MUTED, false);
         form.addView(diskNote, Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
 
+        form.addView(sectionLabel("المجلد المشترك مع الهاتف"));
+        LinearLayout share = Ui.column(this);
+        share.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 10));
+        share.setBackground(Ui.rounded(this, Ui.SURFACE, 18, Ui.BORDER, 1));
+        Switch shareSwitch = new Switch(this);
+        Switch writeSwitch = new Switch(this);
+        shareSwitch.setChecked(config.shareFolder);
+        writeSwitch.setChecked(config.shareWritable);
+        writeSwitch.setEnabled(config.shareFolder);
+        shareSwitch.setOnCheckedChangeListener((b, on) -> {
+            config.shareFolder = on;
+            writeSwitch.setEnabled(on);
+        });
+        writeSwitch.setOnCheckedChangeListener((b, on) -> config.shareWritable = on);
+        share.addView(switchRow("إظهار مجلد الهاتف داخل النظام كقرص", shareSwitch));
+        share.addView(Ui.divider(this));
+        share.addView(switchRow("السماح للنظام بالكتابة فيه (تجريبي)", writeSwitch));
+        String path = new SettingsStore(this).load().sharedFolderPath;
+        share.addView(Ui.text(this, "المجلد: " + path + "\nيظهر كقرص FAT صغير (حتى 480 MB). بدون الكتابة، النقل يكون من الهاتف إلى النظام فقط. غيّر المجلد من الإعدادات.",
+                12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
+        form.addView(share);
+
         scroll.addView(form);
         content.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         root.addView(content);
@@ -268,6 +290,14 @@ public final class NewVmActivity extends Activity {
         root.addView(bottom, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
         return root;
+    }
+
+    private View switchRow(String label, Switch sw) {
+        LinearLayout row = Ui.row(this);
+        row.setMinimumHeight(Ui.dp(this, 52));
+        row.addView(Ui.text(this, label, 14, Ui.TEXT, true), Ui.weight(1));
+        row.addView(sw);
+        return row;
     }
 
     private TextView sectionLabel(String text) {
@@ -486,30 +516,6 @@ public final class NewVmActivity extends Activity {
             finish();
             return;
         }
-        AlertDialog progress = new AlertDialog.Builder(this)
-                .setMessage("جارٍ تجهيز " + config.name + "…")
-                .setCancelable(false)
-                .create();
-        progress.show();
-        VmManager manager = VmManager.get(this);
-        Thread t = new Thread(() -> {
-            try {
-                manager.start(config);
-                main.post(() -> {
-                    progress.dismiss();
-                    startActivity(VmManager.withVm(new Intent(this, DisplayActivity.class), config.id));
-                    finish();
-                });
-            } catch (IOException | RuntimeException e) {
-                main.post(() -> {
-                    progress.dismiss();
-                    new AlertDialog.Builder(this).setTitle("حُفظ النظام لكن تعذر تشغيله")
-                            .setMessage(e.getMessage() == null ? e.toString() : e.getMessage())
-                            .setPositiveButton("حسنًا", (d, w) -> finish())
-                            .show();
-                });
-            }
-        }, "start-vm");
-        t.start();
+        VmStarter.start(this, config, this::finish);
     }
 }

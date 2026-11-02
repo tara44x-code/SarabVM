@@ -3,11 +3,7 @@ package com.sarab.vm.ui;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,7 +11,6 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -28,15 +23,11 @@ import com.sarab.vm.service.VmManager;
 import com.sarab.vm.util.Ui;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 /** Home screen: the list of machines ("أنظمتي"). */
 public final class MainActivity extends Activity implements VmManager.Listener {
 
-    private static final String NOTIFICATION_PERMISSION = "android.permission.POST_NOTIFICATIONS";
-
-    private final Handler main = new Handler(Looper.getMainLooper());
     private VmRepository repo;
     private VmManager manager;
     private LinearLayout list;
@@ -88,6 +79,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         brand.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
         brand.addView(Ui.text(this, "سراب", 22, Ui.TEXT, true));
         brand.addView(Ui.mono(this, "Sarab VM", 12, Ui.MUTED));
+        brand.addView(Ui.text(this, "المطوّر: مهند سات لنك", 11, Ui.SAND, false));
         header.addView(brand, Ui.weight(1));
         TextView settings = Ui.iconButton(this, "⚙", "الإعدادات", Ui.TEXT);
         settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
@@ -123,7 +115,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         fab.setBackground(Ui.clickable(this, Ui.SAND, 18, 0, 0));
         fab.setElevation(Ui.dp(this, 6));
         fab.setClickable(true);
-        fab.setOnClickListener(v -> startActivity(new Intent(this, NewVmActivity.class)));
+        fab.setOnClickListener(v -> chooseNewSource());
         FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, 56),
                 Gravity.BOTTOM | Gravity.LEFT);
         fp.leftMargin = Ui.dp(this, 20);
@@ -139,6 +131,16 @@ public final class MainActivity extends Activity implements VmManager.Listener {
                 v -> startActivity(new Intent(this, SettingsActivity.class))), Ui.weight(1));
         root.addView(nav, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 76), Gravity.BOTTOM));
         return root;
+    }
+
+    private void chooseNewSource() {
+        new AlertDialog.Builder(this)
+                .setTitle("نظام جديد")
+                .setItems(new String[]{"من ملف ISO أو IMG على هاتفي", "تحميل نظام جاهز (Alpine، Debian، Tiny Core)"}, (d, which) -> {
+                    if (which == 0) startActivity(new Intent(this, NewVmActivity.class));
+                    else startActivity(new Intent(this, OsStoreActivity.class));
+                })
+                .show();
     }
 
     private View navItem(String glyph, String label, boolean active, View.OnClickListener click) {
@@ -186,7 +188,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         }
         if (shown == 0) {
             TextView empty = Ui.text(this, all.isEmpty()
-                    ? "لا توجد أنظمة بعد.\nاضغط «نظام جديد» واختر ملف ISO لتبدأ."
+                    ? "لا توجد أنظمة بعد.\nاضغط «نظام جديد» واختر ملف ISO، أو حمّل نظامًا جاهزًا."
                     : "لا توجد أنظمة من هذا النوع.", 15, Ui.MUTED, false);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, Ui.dp(this, 60), 0, 0);
@@ -253,30 +255,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
     // ------------------------------------------------------------ actions
 
     private void startVm(VmConfig c) {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(NOTIFICATION_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{NOTIFICATION_PERMISSION}, 1);
-        }
-        AlertDialog progress = progressDialog("جارٍ تجهيز " + c.name + "…");
-        progress.show();
-        Thread t = new Thread(() -> {
-            try {
-                manager.start(c);
-                main.post(() -> {
-                    progress.dismiss();
-                    openDisplay(c);
-                });
-            } catch (IOException | RuntimeException e) {
-                main.post(() -> {
-                    progress.dismiss();
-                    new AlertDialog.Builder(this)
-                            .setTitle("تعذر التشغيل")
-                            .setMessage(e.getMessage() == null ? e.toString() : e.getMessage())
-                            .setPositiveButton("حسنًا", null)
-                            .show();
-                });
-            }
-        }, "start-vm");
-        t.start();
+        VmStarter.start(this, c, null);
     }
 
     private void openDisplay(VmConfig c) {
@@ -296,7 +275,11 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         boolean running = manager.isRunning(c.id);
         new AlertDialog.Builder(this)
                 .setTitle(c.name)
-                .setItems(new String[]{"تعديل", "حذف"}, (d, which) -> {
+                .setItems(new String[]{"تعديل", "حذف", "السجل (رسائل QEMU)"}, (d, which) -> {
+                    if (which == 2) {
+                        LogActivity.open(this, c.id);
+                        return;
+                    }
                     if (running) {
                         new AlertDialog.Builder(this).setMessage("أوقف النظام أولًا").setPositiveButton("حسنًا", null).show();
                         return;
@@ -350,17 +333,5 @@ public final class MainActivity extends Activity implements VmManager.Listener {
                 })
                 .setPositiveButton("إغلاق", null)
                 .show();
-    }
-
-    private AlertDialog progressDialog(String message) {
-        LinearLayout box = Ui.row(this);
-        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        box.setPadding(Ui.dp(this, 24), Ui.dp(this, 24), Ui.dp(this, 24), Ui.dp(this, 24));
-        ProgressBar bar = new ProgressBar(this);
-        box.addView(bar, Ui.lp(Ui.dp(this, 36), Ui.dp(this, 36)));
-        TextView t = Ui.text(this, message, 15, Ui.TEXT, false);
-        t.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), 0);
-        box.addView(t);
-        return new AlertDialog.Builder(this).setView(box).setCancelable(false).create();
     }
 }

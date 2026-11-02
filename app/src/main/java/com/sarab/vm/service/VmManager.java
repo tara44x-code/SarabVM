@@ -8,9 +8,11 @@ import android.os.Looper;
 import com.sarab.vm.core.EmulatorSettings;
 import com.sarab.vm.core.QemuCommandBuilder;
 import com.sarab.vm.core.QmpClient;
+import com.sarab.vm.core.StoragePaths;
 import com.sarab.vm.core.VmConfig;
 import com.sarab.vm.data.QemuEnvironment;
 import com.sarab.vm.data.SettingsStore;
+import com.sarab.vm.data.StorageAccess;
 import com.sarab.vm.data.VmRepository;
 
 import java.io.BufferedReader;
@@ -159,6 +161,7 @@ public final class VmManager {
         if (settings.accel == EmulatorSettings.Accel.KVM && !new File("/dev/kvm").canRead()) {
             settings.accel = EmulatorSettings.Accel.TCG; // KVM not usable on this phone
         }
+        if (c.shareFolder) prepareSharedFolder(settings);
         int display = allocateDisplay();
         QemuCommandBuilder builder = env.builder();
         List<String> cmd = builder.build(c, settings, display);
@@ -212,6 +215,20 @@ public final class VmManager {
         }
         c.diskPath = disk.getAbsolutePath();
         repo.save(c);
+    }
+
+    private void prepareSharedFolder(EmulatorSettings settings) throws IOException {
+        if (!StorageAccess.has(app)) {
+            throw new IOException("المجلد المشترك يحتاج إذن الوصول إلى ملفات الهاتف. اسمح به ثم شغّل النظام مرة أخرى.");
+        }
+        File dir = new File(settings.sharedFolderPath);
+        if (!dir.isDirectory() && !dir.mkdirs()) {
+            throw new IOException("تعذر إنشاء المجلد المشترك: " + dir);
+        }
+        long size = StoragePaths.folderSize(dir);
+        if (size > StoragePaths.SHARED_LIMIT_BYTES) {
+            throw new IOException("حجم المجلد المشترك " + (size >> 20) + " MB، والحد الأقصى 480 MB. انقل بعض الملفات منه أو اختر مجلدًا آخر من الإعدادات.");
+        }
     }
 
     private void configureEnv(ProcessBuilder pb) {

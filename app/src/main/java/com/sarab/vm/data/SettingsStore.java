@@ -24,6 +24,7 @@ public final class SettingsStore {
         s.network = prefs.getBoolean("network", true);
         s.haptics = prefs.getBoolean("haptics", true);
         s.defaultDiskGb = prefs.getInt("defaultDiskGb", 16);
+        s.sharedFolderPath = prefs.getString("sharedFolderPath", s.sharedFolderPath);
         return s;
     }
 
@@ -33,6 +34,7 @@ public final class SettingsStore {
                 .putBoolean("network", s.network)
                 .putBoolean("haptics", s.haptics)
                 .putInt("defaultDiskGb", s.defaultDiskGb)
+                .putString("sharedFolderPath", s.sharedFolderPath)
                 .apply();
     }
 }

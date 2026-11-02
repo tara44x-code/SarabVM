@@ -21,6 +21,8 @@ public class VmConfigTest {
         c.isoPath = "/data/isos/winpe.iso";
         c.diskPath = "/data/disks/a.qcow2";
         c.diskSizeGb = 20;
+        c.shareFolder = true;
+        c.shareWritable = true;
 
         Properties p = c.toProperties();
         VmConfig back = VmConfig.fromProperties(p);
@@ -35,6 +37,8 @@ public class VmConfigTest {
         assertEquals("/data/disks/a.qcow2", back.diskPath);
         assertEquals(20, back.diskSizeGb);
         assertEquals(c.createdAt, back.createdAt);
+        assertTrue(back.shareFolder);
+        assertTrue(back.shareWritable);
     }
 
     @Test

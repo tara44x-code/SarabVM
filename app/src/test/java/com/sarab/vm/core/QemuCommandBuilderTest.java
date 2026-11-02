@@ -130,6 +130,38 @@ public class QemuCommandBuilderTest {
     }
 
     @Test
+    public void sharedFolderX86ReadOnlyAndWritable() {
+        VmConfig c = new VmConfig();
+        c.name = "w";
+        c.isoPath = "/w.iso";
+        EmulatorSettings s = new EmulatorSettings();
+        s.sharedFolderPath = "/storage/emulated/0/Sarab";
+        assertFalse("off by default", joined(builder.build(c, s, 0)).contains("fat:"));
+
+        c.shareFolder = true;
+        assertTrue(joined(builder.build(c, s, 0)).contains(
+                "file=fat:/storage/emulated/0/Sarab,format=raw,readonly=on,if=ide,index=3,media=disk"));
+
+        c.shareWritable = true;
+        assertTrue(joined(builder.build(c, s, 0)).contains(
+                "file=fat:rw:/storage/emulated/0/Sarab,format=raw,if=ide,index=3,media=disk"));
+    }
+
+    @Test
+    public void sharedFolderArmUsesUsbStorage() {
+        VmConfig c = new VmConfig();
+        c.name = "a";
+        c.arch = VmConfig.Arch.AARCH64;
+        c.isoPath = "/a.iso";
+        c.shareFolder = true;
+        EmulatorSettings s = new EmulatorSettings();
+        s.sharedFolderPath = "/sdcard/Sarab";
+        String all = joined(builder.build(c, s, 0));
+        assertTrue(all.contains("file=fat:/sdcard/Sarab,format=raw,readonly=on,if=none,id=shared0"));
+        assertTrue(all.contains("usb-storage,drive=shared0"));
+    }
+
+    @Test
     public void diskCreation() {
         assertEquals(
                 Arrays.asList("/app/lib/libqemu-img.so", "create", "-f", "qcow2", "/d/x.qcow2", "16G"),

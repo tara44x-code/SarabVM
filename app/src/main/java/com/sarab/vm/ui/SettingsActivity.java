@@ -2,6 +2,9 @@ package com.sarab.vm.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
+import android.provider.DocumentsContract;
+import android.widget.Toast;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -14,6 +17,8 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import com.sarab.vm.core.EmulatorSettings;
+import com.sarab.vm.core.StoragePaths;
+import com.sarab.vm.data.StorageAccess;
 import com.sarab.vm.core.VmConfig;
 import com.sarab.vm.data.QemuEnvironment;
 import com.sarab.vm.data.SettingsStore;
@@ -26,7 +31,12 @@ public final class SettingsActivity extends Activity {
 
     private static final int[] DISK_OPTIONS = {8, 16, 32, 64};
 
+    private static final int REQUEST_FOLDER = 21;
+
     private SettingsStore store;
+    private TextView sharedValue;
+    private View sharedItem;
+    private TextView permissionValue;
     private EmulatorSettings settings;
     private LinearLayout engineToggle;
     private TextView diskValue;
@@ -77,6 +87,23 @@ public final class SettingsActivity extends Activity {
         LinearLayout storage = section(body, "التخزين والشبكة");
         storage.addView(item("مجلد الأنظمة", formatUsage(), null));
         storage.addView(Ui.divider(this));
+        sharedValue = Ui.text(this, "تغيير", 13, Ui.ACCENT, true);
+        sharedValue.setPadding(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
+        sharedValue.setBackground(Ui.clickable(this, Ui.SURFACE_2, 10, Ui.BORDER, 1));
+        sharedValue.setClickable(true);
+        sharedValue.setOnClickListener(v -> pickSharedFolder());
+        sharedItem = item("المجلد المشترك مع الأنظمة", settings.sharedFolderPath, sharedValue);
+        storage.addView(sharedItem);
+        storage.addView(Ui.divider(this));
+        permissionValue = Ui.text(this, "", 13, Ui.TEXT_2, true);
+        permissionValue.setPadding(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
+        permissionValue.setBackground(Ui.clickable(this, Ui.SURFACE_2, 10, Ui.BORDER, 1));
+        permissionValue.setClickable(true);
+        permissionValue.setOnClickListener(v -> {
+            if (!StorageAccess.has(this)) StorageAccess.request(this);
+        });
+        storage.addView(item("إذن الوصول إلى ملفات الهاتف", "مطلوب للمجلد المشترك فقط", permissionValue));
+        storage.addView(Ui.divider(this));
         diskValue = Ui.mono(this, settings.defaultDiskGb + " GB", 13, Ui.ACCENT);
         diskValue.setPadding(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
         diskValue.setBackground(Ui.clickable(this, Ui.SURFACE_2, 10, Ui.BORDER, 1));
@@ -98,7 +125,7 @@ public final class SettingsActivity extends Activity {
             store.save(settings);
         })));
 
-        TextView about = Ui.text(this, "سراب " + version() + " · مبني على QEMU (GPL v2)\nالإعدادات تُطبّق عند التشغيل التالي للنظام.",
+        TextView about = Ui.text(this, "سراب " + version() + " · المطوّر: مهند سات لنك\nمبني على QEMU (GPL v2)\nالإعدادات تُطبّق عند التشغيل التالي للنظام.",
                 12, Ui.MUTED, false);
         about.setGravity(Gravity.CENTER);
         about.setPadding(0, Ui.dp(this, 24), 0, 0);
@@ -107,6 +134,45 @@ public final class SettingsActivity extends Activity {
         scroll.addView(body);
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         return root;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        boolean ok = StorageAccess.has(this);
+        permissionValue.setText(ok ? "مسموح ✓" : "السماح");
+        permissionValue.setTextColor(ok ? Ui.ACCENT : Ui.SAND);
+    }
+
+    private void pickSharedFolder() {
+        try {
+            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_FOLDER);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "لا يوجد تطبيق لاختيار المجلدات", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        String path = null;
+        try {
+            path = StoragePaths.fromTreeDocumentId(DocumentsContract.getTreeDocumentId(data.getData()));
+        } catch (RuntimeException ignored) {
+            // unsupported provider
+        }
+        if (path == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("مجلد غير مدعوم")
+                    .setMessage("اختر مجلدًا من ذاكرة الهاتف الداخلية أو بطاقة الذاكرة، وليس من التنزيلات الحديثة أو تطبيقات أخرى.")
+                    .setPositiveButton("حسنًا", null)
+                    .show();
+            return;
+        }
+        settings.sharedFolderPath = path;
+        store.save(settings);
+        recreate();
     }
 
     private LinearLayout section(LinearLayout parent, String title) {

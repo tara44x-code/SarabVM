@@ -125,6 +125,10 @@ public final class QemuCommandBuilder {
                 a.add("file=" + escape(c.isoPath) + ",if=ide,index=1,media=disk,format=" + diskFormat(c.isoPath));
             }
         }
+        if (sharing(c, s)) {
+            a.add("-drive");
+            a.add(sharedDrive(c, s) + ",if=ide,index=3,media=disk");
+        }
         a.add("-boot");
         a.add(notEmpty(c.isoPath) && isOpticalImage(c.isoPath) ? "order=dc,menu=off" : "order=c,menu=off");
 
@@ -179,6 +183,12 @@ public final class QemuCommandBuilder {
             a.add("-device");
             a.add("virtio-blk-pci,drive=hd0,bootindex=" + bootIndex);
         }
+        if (sharing(c, s)) {
+            a.add("-drive");
+            a.add(sharedDrive(c, s) + ",if=none,id=shared0");
+            a.add("-device");
+            a.add("usb-storage,drive=shared0");
+        }
 
         if (s.network) {
             a.add("-netdev");
@@ -189,6 +199,21 @@ public final class QemuCommandBuilder {
             a.add("-nic");
             a.add("none");
         }
+    }
+
+    static boolean sharing(VmConfig c, EmulatorSettings s) {
+        return c.shareFolder && notEmpty(s.sharedFolderPath);
+    }
+
+    /**
+     * The shared phone folder as a virtual FAT disk (QEMU "vvfat").
+     * Read-only unless the machine is allowed to write.
+     */
+    static String sharedDrive(VmConfig c, EmulatorSettings s) {
+        String dir = escape(s.sharedFolderPath);
+        return c.shareWritable
+                ? "file=fat:rw:" + dir + ",format=raw"
+                : "file=fat:" + dir + ",format=raw,readonly=on";
     }
 
     /** .iso files boot as a CD; .img/.raw/.qcow2 are attached as a disk. */

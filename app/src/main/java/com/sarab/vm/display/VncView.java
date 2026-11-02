@@ -30,7 +30,8 @@ import java.util.Set;
  * and keyboard events.
  *
  * Direct mode: tap = left click where you touch, hold = right click,
- * drag = drag with the left button, two fingers up/down = scroll wheel.
+ * drag = drag with the left button, two fingers up/down = scroll wheel,
+ * pinch = zoom, two fingers drag while zoomed = move around.
  * Touchpad mode: drag moves the pointer like a laptop touchpad, tap clicks.
  */
 public final class VncView extends View implements RfbClient.Listener {
@@ -54,9 +55,12 @@ public final class VncView extends View implements RfbClient.Listener {
     private boolean fullRedraw;
     private boolean invalidatePosted;
 
-    private float scale = 1f;
+    private float baseScale = 1f;   // "fit to view" scale
+    private float userZoom = 1f;    // pinch zoom on top of it (1..MAX_ZOOM)
+    private float scale = 1f;       // baseScale * userZoom
     private float offsetX;
     private float offsetY;
+    private static final float MAX_ZOOM = 5f;
 
     private boolean touchpadMode;
     private boolean haptics = true;
@@ -74,6 +78,16 @@ public final class VncView extends View implements RfbClient.Listener {
     private boolean twoFinger;
     private boolean longPressFired;
     private float wheelAccumulator;
+    // two-finger gesture: decide once whether it is a pinch, a pan or a scroll
+    private static final int TWO_UNDECIDED = 0, TWO_ZOOM = 1, TWO_PAN = 2, TWO_SCROLL = 3;
+    private int twoMode;
+    private float startSpan;
+    private float startFocusX;
+    private float startFocusY;
+    private float startZoom;
+    private float startScale;
+    private float startOffsetX;
+    private float startOffsetY;
     private final Runnable longPress = this::onLongPress;
 
     public VncView(Context context) {
@@ -191,12 +205,31 @@ public final class VncView extends View implements RfbClient.Listener {
 
     private void updateMatrix() {
         if (bitmap == null || getWidth() == 0 || getHeight() == 0) return;
-        scale = Math.min(getWidth() / (float) bitmap.getWidth(), getHeight() / (float) bitmap.getHeight());
-        offsetX = (getWidth() - bitmap.getWidth() * scale) / 2f;
-        offsetY = (getHeight() - bitmap.getHeight() * scale) / 2f;
+        baseScale = Math.min(getWidth() / (float) bitmap.getWidth(), getHeight() / (float) bitmap.getHeight());
+        scale = baseScale * userZoom;
+        applyOffsets();
+    }
+
+    /** Keeps the picture covering the view when zoomed, centred when it is smaller. */
+    private void applyOffsets() {
+        float imgW = bitmap.getWidth() * scale;
+        float imgH = bitmap.getHeight() * scale;
+        offsetX = imgW <= getWidth() ? (getWidth() - imgW) / 2f : clamp(offsetX, getWidth() - imgW, 0);
+        offsetY = imgH <= getHeight() ? (getHeight() - imgH) / 2f : clamp(offsetY, getHeight() - imgH, 0);
         matrix.reset();
         matrix.postScale(scale, scale);
         matrix.postTranslate(offsetX, offsetY);
+    }
+
+    public boolean isZoomed() {
+        return userZoom > 1.01f;
+    }
+
+    /** Back to the whole screen. */
+    public void resetZoom() {
+        userZoom = 1f;
+        updateMatrix();
+        invalidate();
     }
 
     @Override
@@ -257,6 +290,7 @@ public final class VncView extends View implements RfbClient.Listener {
                 dragging = false;
                 moved = false;
                 twoFinger = false;
+                twoMode = TWO_UNDECIDED;
                 longPressFired = false;
                 wheelAccumulator = 0;
                 if (!touchpadMode) c.sendPointer(0, toFbX(downX), toFbY(downY));
@@ -270,15 +304,56 @@ public final class VncView extends View implements RfbClient.Listener {
                     dragging = false;
                 }
                 twoFinger = true;
-                lastY = averageY(e);
+                twoMode = TWO_UNDECIDED;
+                startSpan = span(e);
+                startFocusX = averageX(e);
+                startFocusY = averageY(e);
+                startZoom = userZoom;
+                startScale = scale;
+                startOffsetX = offsetX;
+                startOffsetY = offsetY;
+                lastY = startFocusY;
                 return true;
 
             case MotionEvent.ACTION_MOVE: {
                 if (twoFinger) {
+                    if (e.getPointerCount() < 2) return true;
+                    float density = getResources().getDisplayMetrics().density;
+                    float span = span(e);
+                    float fx = averageX(e);
                     float y = averageY(e);
+                    if (twoMode == TWO_UNDECIDED) {
+                        if (Math.abs(span - startSpan) > 24 * density) {
+                            twoMode = TWO_ZOOM;
+                        } else if (Math.hypot(fx - startFocusX, y - startFocusY) > 16 * density) {
+                            twoMode = isZoomed() ? TWO_PAN : TWO_SCROLL;
+                            lastY = y;
+                        } else {
+                            return true;
+                        }
+                    }
+                    if (twoMode == TWO_ZOOM && startSpan > 0) {
+                        // keep the point under the fingers where it is while zooming
+                        float fbX = (startFocusX - startOffsetX) / startScale;
+                        float fbY = (startFocusY - startOffsetY) / startScale;
+                        userZoom = clamp(startZoom * span / startSpan, 1f, MAX_ZOOM);
+                        scale = baseScale * userZoom;
+                        offsetX = fx - fbX * scale;
+                        offsetY = y - fbY * scale;
+                        applyOffsets();
+                        invalidate();
+                        return true;
+                    }
+                    if (twoMode == TWO_PAN) {
+                        offsetX = startOffsetX + (fx - startFocusX);
+                        offsetY = startOffsetY + (y - startFocusY);
+                        applyOffsets();
+                        invalidate();
+                        return true;
+                    }
                     wheelAccumulator += y - lastY;
                     lastY = y;
-                    float step = getResources().getDisplayMetrics().density * 28;
+                    float step = density * 28;
                     while (Math.abs(wheelAccumulator) >= step) {
                         int button = wheelAccumulator > 0 ? RfbClient.WHEEL_UP : RfbClient.WHEEL_DOWN;
                         int px = pointerFbX(e.getX(0));
@@ -315,6 +390,7 @@ public final class VncView extends View implements RfbClient.Listener {
 
             case MotionEvent.ACTION_UP: {
                 main.removeCallbacks(longPress);
+                if (twoMode == TWO_ZOOM && userZoom < 1.05f) resetZoom();
                 float x = e.getX();
                 float y = e.getY();
                 if (dragging) {
@@ -355,6 +431,17 @@ public final class VncView extends View implements RfbClient.Listener {
         c.sendPointer(RfbClient.BUTTON_RIGHT, px, py);
         c.sendPointer(0, px, py);
         if (haptics) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+    }
+
+    private static float averageX(MotionEvent e) {
+        float sum = 0;
+        for (int i = 0; i < e.getPointerCount(); i++) sum += e.getX(i);
+        return sum / e.getPointerCount();
+    }
+
+    private static float span(MotionEvent e) {
+        if (e.getPointerCount() < 2) return 0;
+        return (float) Math.hypot(e.getX(0) - e.getX(1), e.getY(0) - e.getY(1));
     }
 
     private static float averageY(MotionEvent e) {
