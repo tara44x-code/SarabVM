@@ -1,0 +1,65 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the QEMU download script
+        run: python3 scripts/test_fetch_qemu.py
+
+      - name: Download QEMU for Android (Termux packages)
+        run: python3 scripts/fetch_qemu.py
+
+      - name: Run unit tests and build the APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug
+
+      - name: Check that QEMU is inside the APK
+        run: |
+          for f in libqemu-system-x86_64.so libqemu-system-aarch64.so libqemu-img.so; do
+            unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -q "lib/arm64-v8a/$f" || { echo "MISSING $f in APK"; exit 1; }
+          done
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -c "lib/arm64-v8a/" 
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -q "assets/qemu-data/bios-256k.bin" || { echo "MISSING firmware"; exit 1; }
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk SarabVM.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SarabVM-apk
+          path: SarabVM.apk
+          if-no-files-found: error
+
+      - name: Publish release (for version tags like v1.0.0)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SarabVM.apk

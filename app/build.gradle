@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = 'com.sarab.vm'
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = 'com.sarab.vm'
+        minSdk = 26
+        targetSdk = 34
+        versionCode = 1
+        versionName = '1.0.0'
+        // QEMU binaries are fetched for 64-bit ARM phones only (almost every phone since 2017).
+        ndk {
+            abiFilters.add('arm64-v8a')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            // Signed with the debug key so the APK installs directly. Use your own key to publish.
+            signingConfig = signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    packaging {
+        jniLibs {
+            // Android may only execute files that are extracted to the native library folder.
+            useLegacyPackaging = true
+            // The QEMU files are already stripped; skip the NDK strip step.
+            keepDebugSymbols.add('**/*.so')
+        }
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
