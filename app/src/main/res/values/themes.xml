@@ -19,4 +19,24 @@
         <item name="android:textColorPrimary">@color/text</item>
         <item name="android:textColorSecondary">@color/muted</item>
     </style>
+
+    <style name="Theme.Sarab.Light" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/light_bg</item>
+        <item name="android:colorPrimaryDark">@color/light_bg</item>
+        <item name="android:colorAccent">@color/light_accent</item>
+        <item name="android:colorControlActivated">@color/light_accent</item>
+        <item name="android:windowBackground">@color/light_bg</item>
+        <item name="android:statusBarColor">@color/light_bg</item>
+        <item name="android:navigationBarColor">@color/light_surface</item>
+        <item name="android:textColorPrimary">@color/light_text</item>
+        <item name="android:textColorSecondary">@color/light_muted</item>
+        <item name="android:alertDialogTheme">@style/Theme.Sarab.Dialog.Light</item>
+    </style>
+
+    <style name="Theme.Sarab.Dialog.Light" parent="android:Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">@color/light_accent</item>
+        <item name="android:colorBackground">@color/light_surface</item>
+        <item name="android:textColorPrimary">@color/light_text</item>
+        <item name="android:textColorSecondary">@color/light_muted</item>
+    </style>
 </resources>

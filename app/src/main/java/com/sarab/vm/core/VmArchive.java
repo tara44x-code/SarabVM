@@ -69,7 +69,7 @@ public final class VmArchive {
             ZipEntry e;
             while ((e = zip.getNextEntry()) != null) {
                 String name = e.getName();
-                if (name.contains("..") || name.startsWith("/")) throw new IOException("ملف غير صالح");
+                if (name.contains("..") || name.startsWith("/")) throw new IOException(Lang.t("ملف غير صالح"));
                 if (CONFIG.equals(name)) {
                     Properties p = new Properties();
                     p.load(zip);
@@ -86,8 +86,8 @@ public final class VmArchive {
                     } else {
                         File tmp = new File(imagesDir, fileName + ".part");
                         copy(zip, tmp, done, -1, progress);
-                        if (target.exists() && !target.delete()) throw new IOException("تعذر استبدال " + fileName);
-                        if (!tmp.renameTo(target)) throw new IOException("تعذر حفظ " + fileName);
+                        if (target.exists() && !target.delete()) throw new IOException(Lang.t("تعذر استبدال ") + fileName);
+                        if (!tmp.renameTo(target)) throw new IOException(Lang.t("تعذر حفظ ") + fileName);
                         image = target;
                     }
                 }
@@ -105,7 +105,7 @@ public final class VmArchive {
                 //noinspection ResultOfMethodCallIgnored
                 disk.delete();
             }
-            throw new IOException("هذا ليس ملف نظام من سراب");
+            throw new IOException(Lang.t("هذا ليس ملف نظام من سراب"));
         }
         c.id = newId;
         c.createdAt = System.currentTimeMillis();
@@ -126,7 +126,7 @@ public final class VmArchive {
         VmConfig c = VmConfig.fromProperties(src.toProperties());
         c.id = new VmConfig().id;
         c.createdAt = System.currentTimeMillis();
-        c.name = src.name + " (نسخة)";
+        c.name = src.name + Lang.t(" (نسخة)");
         if (notEmpty(src.diskPath) && new File(src.diskPath).isFile()) {
             File from = new File(src.diskPath);
             File to = new File(disksDir, c.id + ".qcow2");
@@ -165,7 +165,7 @@ public final class VmArchive {
         while ((n = in.read(buf)) > 0) {
             out.write(buf, 0, n);
             done[0] += n;
-            if (progress != null && !progress.onProgress(done[0], total)) throw new IOException("أُلغيت العملية");
+            if (progress != null && !progress.onProgress(done[0], total)) throw new IOException(Lang.t("أُلغيت العملية"));
         }
     }
 

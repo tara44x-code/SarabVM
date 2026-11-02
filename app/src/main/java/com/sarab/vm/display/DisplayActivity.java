@@ -1,5 +1,7 @@
 package com.sarab.vm.display;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ContentValues;
@@ -73,12 +75,13 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Ui.init(this);
         super.onCreate(savedInstanceState);
         manager = VmManager.get(this);
         String id = getIntent().getStringExtra(VmManager.EXTRA_VM_ID);
         vm = manager.getRunning(id);
         if (vm == null) {
-            Toast.makeText(this, "النظام غير مشغّل", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Lang.t("النظام غير مشغّل"), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -90,7 +93,7 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
             long now = System.currentTimeMillis();
             if (now - lastLanguageHint > 8000) {
                 lastLanguageHint = now;
-                Toast.makeText(this, "بدّل كيبورد الهاتف إلى الإنجليزية، فالنظام الوهمي يستقبل الحروف الإنجليزية فقط",
+                Toast.makeText(this, Lang.t("بدّل كيبورد الهاتف إلى الإنجليزية، فالنظام الوهمي يستقبل الحروف الإنجليزية فقط"),
                         Toast.LENGTH_LONG).show();
             }
         });
@@ -100,26 +103,26 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
     private void buildUi(VmConfig c) {
         LinearLayout root = Ui.column(this);
         root.setBackgroundColor(Ui.BG_DEEP);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setLayoutDirection(Ui.dir());
         root.setFitsSystemWindows(true);
 
         // header
         header = Ui.row(this);
         header.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 12));
-        TextView back = Ui.iconButton(this, "›", "رجوع", Ui.TEXT);
+        TextView back = Ui.iconButton(this, Ui.backGlyph(), Lang.t("رجوع"), Ui.TEXT);
         back.setOnClickListener(v -> finish());
         header.addView(back);
         LinearLayout titles = Ui.column(this);
         titles.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
         titles.addView(Ui.text(this, c.name, 17, Ui.TEXT, true));
         LinearLayout statusRow = Ui.row(this);
-        status = Ui.text(this, "● يعمل · ", 12, Ui.ACCENT, true);
+        status = Ui.text(this, Lang.t("● يعمل · "), 12, Ui.ACCENT, true);
         uptime = Ui.mono(this, "00:00:00", 12, Ui.ACCENT);
         statusRow.addView(status);
         statusRow.addView(uptime);
         titles.addView(statusRow);
         header.addView(titles, Ui.weight(1));
-        TextView power = Ui.iconButton(this, "⏻", "إيقاف التشغيل", Ui.SAND);
+        TextView power = Ui.iconButton(this, "⏻", Lang.t("إيقاف التشغيل"), Ui.SAND);
         power.setBackground(Ui.clickable(this, Ui.SAND_BG, 12, Ui.SAND_BORDER, 1));
         power.setOnClickListener(v -> askPower());
         header.addView(power);
@@ -128,9 +131,9 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
         // screen
         FrameLayout screenFrame = new FrameLayout(this);
         vnc = new VncView(this);
-        vnc.setContentDescription("شاشة النظام الوهمي");
+        vnc.setContentDescription(Lang.t("شاشة النظام الوهمي"));
         screenFrame.addView(vnc, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        overlay = Ui.text(this, "جارٍ الاتصال بالشاشة…", 15, Ui.TEXT_2, false);
+        overlay = Ui.text(this, Lang.t("جارٍ الاتصال بالشاشة…"), 15, Ui.TEXT_2, false);
         overlay.setGravity(Gravity.CENTER);
         overlay.setPadding(Ui.dp(this, 24), 0, Ui.dp(this, 24), 0);
         screenFrame.addView(overlay, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -143,17 +146,17 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
         // toolbar
         toolbar = Ui.row(this);
         toolbar.setPadding(Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 6));
-        kbButton = toolButton("⌨", "لوحة مفاتيح");
+        kbButton = toolButton("⌨", Lang.t("لوحة مفاتيح"));
         kbButton.setOnClickListener(v -> toggleKeyboard());
-        mouseButton = toolButton("◎", "لمس مباشر");
+        mouseButton = toolButton("◎", Lang.t("لمس مباشر"));
         mouseButton.setOnClickListener(v -> toggleMouse());
-        TextView cad = toolButton("C+A+Del", "إعادة ضبط");
+        TextView cad = toolButton("C+A+Del", Lang.t("إعادة ضبط"));
         cad.setOnClickListener(v -> {
             if (vnc.client() != null) vnc.client().sendCombo(Keysyms.CONTROL_L, Keysyms.ALT_L, Keysyms.DELETE);
         });
-        TextView full = toolButton("⛶", "ملء الشاشة");
+        TextView full = toolButton("⛶", Lang.t("ملء الشاشة"));
         full.setOnClickListener(v -> setFullscreen(true));
-        TextView shot = toolButton("◉", "لقطة");
+        TextView shot = toolButton("◉", Lang.t("لقطة"));
         shot.setOnClickListener(v -> saveScreenshot());
         for (TextView b : new TextView[]{kbButton, mouseButton, cad, full, shot}) {
             LinearLayout.LayoutParams p = Ui.weight(1);
@@ -251,8 +254,8 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
     private void toggleMouse() {
         boolean pad = !vnc.isTouchpadMode();
         vnc.setTouchpadMode(pad);
-        mouseButton.setText(pad ? "◎\nلوحة لمس" : "◎\nلمس مباشر");
-        Toast.makeText(this, pad ? "حرّك إصبعك لتحريك المؤشر، والمس للنقر" : "المس مكان النقر مباشرة، والضغط المطوّل = زر أيمن",
+        mouseButton.setText(pad ? Lang.t("◎\nلوحة لمس") : Lang.t("◎\nلمس مباشر"));
+        Toast.makeText(this, pad ? Lang.t("حرّك إصبعك لتحريك المؤشر، والمس للنقر") : Lang.t("المس مكان النقر مباشرة، والضغط المطوّل = زر أيمن"),
                 Toast.LENGTH_SHORT).show();
     }
 
@@ -273,7 +276,7 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
                 }
             }
         }
-        if (on) Toast.makeText(this, "اضغط زر الرجوع للخروج من ملء الشاشة", Toast.LENGTH_SHORT).show();
+        if (on) Toast.makeText(this, Lang.t("اضغط زر الرجوع للخروج من ملء الشاشة"), Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -309,44 +312,44 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
 
     private void askPower() {
         String[] items = {
-                "حفظ الحالة وإيقاف — يرجع من نفس النقطة",
-                "إيقاف آمن — يطلب من النظام أن يُغلق نفسه",
-                "إيقاف فوري — مثل فصل الكهرباء",
+                Lang.t("حفظ الحالة وإيقاف — يرجع من نفس النقطة"),
+                Lang.t("إيقاف آمن — يطلب من النظام أن يُغلق نفسه"),
+                Lang.t("إيقاف فوري — مثل فصل الكهرباء"),
         };
         new AlertDialog.Builder(this)
-                .setTitle("إيقاف " + vm.config.name)
+                .setTitle(Lang.t("إيقاف ") + vm.config.name)
                 .setItems(items, (d, which) -> {
                     if (which == 0) saveState();
                     else if (which == 1) runInBackground(() -> {
                         try {
                             manager.requestShutdown(vm.config.id);
-                            toast("أُرسل طلب الإيقاف إلى النظام");
+                            toast(Lang.t("أُرسل طلب الإيقاف إلى النظام"));
                         } catch (IOException e) {
-                            toast("تعذر إرسال الطلب: " + e.getMessage());
+                            toast(Lang.t("تعذر إرسال الطلب: ") + e.getMessage());
                         }
                     });
                     else runInBackground(() -> manager.forceStop(vm.config.id));
                 })
-                .setNegativeButton("إلغاء", null)
+                .setNegativeButton(Lang.t("إلغاء"), null)
                 .show();
     }
 
     private void saveState() {
         if (!vm.config.canSaveState()) {
             new AlertDialog.Builder(this)
-                    .setTitle("لا يمكن حفظ الحالة")
+                    .setTitle(Lang.t("لا يمكن حفظ الحالة"))
                     .setMessage(vm.config.diskPath == null || vm.config.diskPath.isEmpty()
-                            ? "حفظ الحالة يحتاج قرصًا صلبًا وهميًا (القرص يحفظ الحالة بداخله). أوقف النظام وأضف قرصًا من «تعديل»."
-                            : "حفظ الحالة لا يعمل عندما يكون المجلد المشترك قابلًا للكتابة. أوقف خيار الكتابة من «تعديل».")
-                    .setPositiveButton("حسنًا", null)
+                            ? Lang.t("حفظ الحالة يحتاج قرصًا صلبًا وهميًا (القرص يحفظ الحالة بداخله). أوقف النظام وأضف قرصًا من «تعديل».")
+                            : Lang.t("حفظ الحالة لا يعمل عندما يكون المجلد المشترك قابلًا للكتابة. أوقف خيار الكتابة من «تعديل»."))
+                    .setPositiveButton(Lang.t("حسنًا"), null)
                     .show();
             return;
         }
         android.widget.LinearLayout box = Ui.row(this);
-        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setLayoutDirection(Ui.dir());
         box.setPadding(Ui.dp(this, 24), Ui.dp(this, 24), Ui.dp(this, 24), Ui.dp(this, 24));
         box.addView(new android.widget.ProgressBar(this), Ui.lp(Ui.dp(this, 36), Ui.dp(this, 36)));
-        TextView t = Ui.text(this, "جارٍ حفظ الحالة… قد يأخذ دقيقة أو أكثر حسب حجم الذاكرة.", 15, Ui.TEXT, false);
+        TextView t = Ui.text(this, Lang.t("جارٍ حفظ الحالة… قد يأخذ دقيقة أو أكثر حسب حجم الذاكرة."), 15, Ui.TEXT, false);
         t.setPaddingRelative(Ui.dp(this, 16), 0, 0, 0);
         box.addView(t, Ui.weight(1));
         AlertDialog progress = new AlertDialog.Builder(this).setView(box).setCancelable(false).create();
@@ -356,16 +359,16 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
                 manager.saveStateAndStop(vm.config.id);
                 main.post(() -> {
                     progress.dismiss();
-                    toast("حُفظت الحالة ✓ التشغيل القادم يكمل من نفس النقطة");
+                    toast(Lang.t("حُفظت الحالة ✓ التشغيل القادم يكمل من نفس النقطة"));
                 });
             } catch (IOException e) {
                 main.post(() -> {
                     progress.dismiss();
                     if (isFinishing() || isDestroyed()) return;
                     new AlertDialog.Builder(this)
-                            .setTitle("تعذر حفظ الحالة")
+                            .setTitle(Lang.t("تعذر حفظ الحالة"))
                             .setMessage(String.valueOf(e.getMessage()))
-                            .setPositiveButton("حسنًا", null)
+                            .setPositiveButton(Lang.t("حسنًا"), null)
                             .show();
                 });
             }
@@ -375,7 +378,7 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
     private void saveScreenshot() {
         Bitmap b = vnc.snapshot();
         if (b == null) {
-            toast("لا توجد صورة بعد");
+            toast(Lang.t("لا توجد صورة بعد"));
             return;
         }
         String name = "sarab_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".png";
@@ -392,7 +395,7 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
                         if (o == null) throw new IOException("MediaStore");
                         b.compress(Bitmap.CompressFormat.PNG, 100, o);
                     }
-                    toast("حُفظت اللقطة في الصور / Sarab");
+                    toast(Lang.t("حُفظت اللقطة في الصور / Sarab"));
                 } else {
                     File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
                     if (dir == null) throw new IOException("storage");
@@ -400,10 +403,10 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
                     try (OutputStream o = new FileOutputStream(f)) {
                         b.compress(Bitmap.CompressFormat.PNG, 100, o);
                     }
-                    toast("حُفظت اللقطة: " + f.getAbsolutePath());
+                    toast(Lang.t("حُفظت اللقطة: ") + f.getAbsolutePath());
                 }
             } catch (IOException e) {
-                toast("تعذر حفظ اللقطة");
+                toast(Lang.t("تعذر حفظ اللقطة"));
             }
         });
     }
@@ -423,9 +426,9 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
             if (isFinishing() || isDestroyed()) return;
             if (manager.isRunning(vm.config.id)) {
                 overlay.setVisibility(View.VISIBLE);
-                overlay.setText("انقطع الاتصال بالشاشة. المس هنا لإعادة المحاولة.");
+                overlay.setText(Lang.t("انقطع الاتصال بالشاشة. المس هنا لإعادة المحاولة."));
                 overlay.setOnClickListener(v -> {
-                    overlay.setText("جارٍ الاتصال بالشاشة…");
+                    overlay.setText(Lang.t("جارٍ الاتصال بالشاشة…"));
                     overlay.setOnClickListener(null);
                     vnc.connect(vm.vncPort());
                 });
@@ -446,21 +449,21 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
         vnc.disconnect();
         VmManager.ExitInfo info = manager.lastExit(vm.config.id);
         if (info == null || info.exitCode == 0) {
-            toast("توقّف النظام");
+            toast(Lang.t("توقّف النظام"));
             finish();
             return;
         }
-        String log = info.logTail == null || info.logTail.isEmpty() ? "(لا توجد رسائل)" : info.logTail;
+        String log = info.logTail == null || info.logTail.isEmpty() ? Lang.t("(لا توجد رسائل)") : info.logTail;
         TextView t = Ui.mono(this, log, 11, Ui.TEXT_2);
         t.setTextIsSelectable(true);
         t.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), 0);
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.addView(t);
         new AlertDialog.Builder(this)
-                .setTitle("توقّف النظام بخطأ (رمز " + info.exitCode + ")")
+                .setTitle(Lang.t("توقّف النظام بخطأ (رمز ") + info.exitCode + ")")
                 .setView(sv)
-                .setPositiveButton("حسنًا", (d, w) -> finish())
-                .setNeutralButton("السجل الكامل", (d, w) -> {
+                .setPositiveButton(Lang.t("حسنًا"), (d, w) -> finish())
+                .setNeutralButton(Lang.t("السجل الكامل"), (d, w) -> {
                     com.sarab.vm.ui.LogActivity.open(this, vm.config.id);
                     finish();
                 })

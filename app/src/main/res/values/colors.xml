@@ -7,4 +7,9 @@
     <color name="text">#E8F1F2</color>
     <color name="muted">#8FA5AB</color>
     <color name="nav">#0F181B</color>
+    <color name="light_bg">#F5F8F8</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_accent">#0B7F74</color>
+    <color name="light_text">#0F1A1D</color>
+    <color name="light_muted">#56696E</color>
 </resources>

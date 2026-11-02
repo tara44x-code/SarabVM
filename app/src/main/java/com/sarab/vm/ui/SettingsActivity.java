@@ -1,5 +1,7 @@
 package com.sarab.vm.ui;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -43,6 +45,7 @@ public final class SettingsActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Ui.init(this);
         super.onCreate(savedInstanceState);
         store = new SettingsStore(this);
         settings = store.load();
@@ -52,15 +55,15 @@ public final class SettingsActivity extends Activity {
     private View buildUi() {
         LinearLayout root = Ui.column(this);
         root.setBackgroundColor(Ui.BG);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setLayoutDirection(Ui.dir());
         root.setFitsSystemWindows(true);
 
         LinearLayout header = Ui.row(this);
         header.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 12));
-        TextView back = Ui.iconButton(this, "›", "رجوع", Ui.TEXT);
+        TextView back = Ui.iconButton(this, Ui.backGlyph(), Lang.t("رجوع"), Ui.TEXT);
         back.setOnClickListener(v -> finish());
         header.addView(back);
-        TextView title = Ui.text(this, "الإعدادات", 22, Ui.TEXT, true);
+        TextView title = Ui.text(this, Lang.t("الإعدادات"), 22, Ui.TEXT, true);
         title.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
         header.addView(title);
         root.addView(header);
@@ -70,29 +73,29 @@ public final class SettingsActivity extends Activity {
         body.setPadding(Ui.dp(this, 20), 0, Ui.dp(this, 20), Ui.dp(this, 32));
 
         // emulation
-        LinearLayout emu = section(body, "المحاكاة");
+        LinearLayout emu = section(body, Lang.t("المحاكاة"));
         engineToggle = Ui.row(this);
         engineToggle.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         engineToggle.setBackground(Ui.rounded(this, Ui.BG, 10, 0, 0));
         engineToggle.setPadding(Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3));
         refreshEngine();
-        emu.addView(item("محرك التشغيل", "TCG يعمل دائمًا. KVM أسرع لكنه يحتاج روت ويعمل مع aarch64 فقط", engineToggle));
+        emu.addView(item(Lang.t("محرك التشغيل"), Lang.t("TCG يعمل دائمًا. KVM أسرع لكنه يحتاج روت ويعمل مع aarch64 فقط"), engineToggle));
         emu.addView(Ui.divider(this));
-        emu.addView(item("طريقة العرض", null, Ui.mono(this, "VNC", 13, Ui.TEXT_2)));
+        emu.addView(item(Lang.t("طريقة العرض"), null, Ui.mono(this, "VNC", 13, Ui.TEXT_2)));
         emu.addView(Ui.divider(this));
         QemuEnvironment env = new QemuEnvironment(this);
-        emu.addView(item("المحركات المتوفرة", null, Ui.mono(this, engines(env), 12, Ui.TEXT_2)));
+        emu.addView(item(Lang.t("المحركات المتوفرة"), null, Ui.mono(this, engines(env), 12, Ui.TEXT_2)));
 
         // storage & network
-        LinearLayout storage = section(body, "التخزين والشبكة");
-        storage.addView(item("مجلد الأنظمة", formatUsage(), null));
+        LinearLayout storage = section(body, Lang.t("التخزين والشبكة"));
+        storage.addView(item(Lang.t("مجلد الأنظمة"), formatUsage(), null));
         storage.addView(Ui.divider(this));
-        sharedValue = Ui.text(this, "تغيير", 13, Ui.ACCENT, true);
+        sharedValue = Ui.text(this, Lang.t("تغيير"), 13, Ui.ACCENT, true);
         sharedValue.setPadding(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
         sharedValue.setBackground(Ui.clickable(this, Ui.SURFACE_2, 10, Ui.BORDER, 1));
         sharedValue.setClickable(true);
         sharedValue.setOnClickListener(v -> pickSharedFolder());
-        sharedItem = item("المجلد المشترك مع الأنظمة", settings.sharedFolderPath, sharedValue);
+        sharedItem = item(Lang.t("المجلد المشترك مع الأنظمة"), settings.sharedFolderPath, sharedValue);
         storage.addView(sharedItem);
         storage.addView(Ui.divider(this));
         permissionValue = Ui.text(this, "", 13, Ui.TEXT_2, true);
@@ -102,30 +105,34 @@ public final class SettingsActivity extends Activity {
         permissionValue.setOnClickListener(v -> {
             if (!StorageAccess.has(this)) StorageAccess.request(this);
         });
-        storage.addView(item("إذن الوصول إلى ملفات الهاتف", "مطلوب للمجلد المشترك فقط", permissionValue));
+        storage.addView(item(Lang.t("إذن الوصول إلى ملفات الهاتف"), Lang.t("مطلوب للمجلد المشترك فقط"), permissionValue));
         storage.addView(Ui.divider(this));
         diskValue = Ui.mono(this, settings.defaultDiskGb + " GB", 13, Ui.ACCENT);
         diskValue.setPadding(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
         diskValue.setBackground(Ui.clickable(this, Ui.SURFACE_2, 10, Ui.BORDER, 1));
         diskValue.setClickable(true);
         diskValue.setOnClickListener(v -> chooseDisk());
-        storage.addView(item("حجم القرص الافتراضي", null, diskValue));
+        storage.addView(item(Lang.t("حجم القرص الافتراضي"), null, diskValue));
         storage.addView(Ui.divider(this));
-        storage.addView(item("الإنترنت داخل النظام", null, toggle(settings.network, on -> {
+        storage.addView(item(Lang.t("الإنترنت داخل النظام"), null, toggle(settings.network, on -> {
             settings.network = on;
             store.save(settings);
         })));
 
         // interface
-        LinearLayout iface = section(body, "الواجهة");
-        iface.addView(item("اللغة", null, Ui.text(this, "العربية", 14, Ui.TEXT_2, false)));
+        LinearLayout iface = section(body, Lang.t("الواجهة"));
+        iface.addView(item("اللغة · Language", null,
+                choice("lang", new String[]{"العربية", "English"}, new String[]{"ar", "en"}, "ar")));
         iface.addView(Ui.divider(this));
-        iface.addView(item("اهتزاز عند الضغط", null, toggle(settings.haptics, on -> {
+        iface.addView(item(Lang.t("المظهر"), null,
+                choice("theme", new String[]{Lang.t("داكن"), Lang.t("فاتح")}, new String[]{"dark", "light"}, "dark")));
+        iface.addView(Ui.divider(this));
+        iface.addView(item(Lang.t("اهتزاز عند الضغط"), null, toggle(settings.haptics, on -> {
             settings.haptics = on;
             store.save(settings);
         })));
 
-        TextView about = Ui.text(this, "سراب " + version() + " · المطوّر: مهند سات لنك\nمبني على QEMU (GPL v2)\nالإعدادات تُطبّق عند التشغيل التالي للنظام.",
+        TextView about = Ui.text(this, Lang.t("سراب ") + version() + Lang.t(" · المطوّر: مهند سات لنك\nمبني على QEMU (GPL v2)\nالإعدادات تُطبّق عند التشغيل التالي للنظام."),
                 12, Ui.MUTED, false);
         about.setGravity(Gravity.CENTER);
         about.setPadding(0, Ui.dp(this, 24), 0, 0);
@@ -140,7 +147,7 @@ public final class SettingsActivity extends Activity {
     protected void onResume() {
         super.onResume();
         boolean ok = StorageAccess.has(this);
-        permissionValue.setText(ok ? "مسموح ✓" : "السماح");
+        permissionValue.setText(ok ? Lang.t("مسموح ✓") : Lang.t("السماح"));
         permissionValue.setTextColor(ok ? Ui.ACCENT : Ui.SAND);
     }
 
@@ -148,7 +155,7 @@ public final class SettingsActivity extends Activity {
         try {
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_FOLDER);
         } catch (RuntimeException e) {
-            Toast.makeText(this, "لا يوجد تطبيق لاختيار المجلدات", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, Lang.t("لا يوجد تطبيق لاختيار المجلدات"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -164,15 +171,40 @@ public final class SettingsActivity extends Activity {
         }
         if (path == null) {
             new AlertDialog.Builder(this)
-                    .setTitle("مجلد غير مدعوم")
-                    .setMessage("اختر مجلدًا من ذاكرة الهاتف الداخلية أو بطاقة الذاكرة، وليس من التنزيلات الحديثة أو تطبيقات أخرى.")
-                    .setPositiveButton("حسنًا", null)
+                    .setTitle(Lang.t("مجلد غير مدعوم"))
+                    .setMessage(Lang.t("اختر مجلدًا من ذاكرة الهاتف الداخلية أو بطاقة الذاكرة، وليس من التنزيلات الحديثة أو تطبيقات أخرى."))
+                    .setPositiveButton(Lang.t("حسنًا"), null)
                     .show();
             return;
         }
         settings.sharedFolderPath = path;
         store.save(settings);
         recreate();
+    }
+
+    /** Two-option switch stored in the "ui" preferences; the screen rebuilds right away. */
+    private View choice(String key, String[] labels, String[] values, String def) {
+        LinearLayout box = Ui.row(this);
+        box.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        box.setBackground(Ui.rounded(this, Ui.BG, 10, 0, 0));
+        box.setPadding(Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3), Ui.dp(this, 3));
+        String current = Ui.pref(this, key, def);
+        for (int i = 0; i < labels.length; i++) {
+            boolean on = values[i].equals(current);
+            TextView b = Ui.text(this, labels[i], 13, on ? Ui.ON_ACCENT : Ui.TEXT_2, true);
+            b.setGravity(Gravity.CENTER);
+            b.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
+            b.setBackground(on ? Ui.clickable(this, Ui.ACCENT, 8, 0, 0) : Ui.clickable(this, Ui.BG, 8, 0, 0));
+            b.setClickable(true);
+            String value = values[i];
+            b.setOnClickListener(v -> {
+                if (value.equals(Ui.pref(this, key, def))) return;
+                Ui.setPref(this, key, value);
+                recreate();
+            });
+            box.addView(b, Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, 36)));
+        }
+        return box;
     }
 
     private LinearLayout section(LinearLayout parent, String title) {
@@ -228,10 +260,10 @@ public final class SettingsActivity extends Activity {
     private void selectEngine(EmulatorSettings.Accel a) {
         if (a == EmulatorSettings.Accel.KVM && !new File("/dev/kvm").canRead()) {
             new AlertDialog.Builder(this)
-                    .setTitle("KVM غير متاح")
-                    .setMessage("هذا الهاتف لا يسمح للتطبيق باستخدام KVM (يحتاج غالبًا روت ونواة تدعمه). سيُحفظ الخيار، لكن الأنظمة ستعمل بـ TCG حتى يصبح KVM متاحًا.")
-                    .setPositiveButton("فهمت", (d, w) -> applyEngine(a))
-                    .setNegativeButton("إلغاء", null)
+                    .setTitle(Lang.t("KVM غير متاح"))
+                    .setMessage(Lang.t("هذا الهاتف لا يسمح للتطبيق باستخدام KVM (يحتاج غالبًا روت ونواة تدعمه). سيُحفظ الخيار، لكن الأنظمة ستعمل بـ TCG حتى يصبح KVM متاحًا."))
+                    .setPositiveButton(Lang.t("فهمت"), (d, w) -> applyEngine(a))
+                    .setNegativeButton(Lang.t("إلغاء"), null)
                     .show();
             return;
         }
@@ -248,7 +280,7 @@ public final class SettingsActivity extends Activity {
         String[] labels = new String[DISK_OPTIONS.length];
         for (int i = 0; i < labels.length; i++) labels[i] = DISK_OPTIONS[i] + " GB";
         new AlertDialog.Builder(this)
-                .setTitle("حجم القرص الافتراضي")
+                .setTitle(Lang.t("حجم القرص الافتراضي"))
                 .setItems(labels, (d, which) -> {
                     settings.defaultDiskGb = DISK_OPTIONS[which];
                     store.save(settings);
@@ -261,13 +293,13 @@ public final class SettingsActivity extends Activity {
         StringBuilder sb = new StringBuilder();
         if (env.hasEngine(VmConfig.Arch.X86_64)) sb.append("x86_64");
         if (env.hasEngine(VmConfig.Arch.AARCH64)) sb.append(sb.length() > 0 ? " · " : "").append("aarch64");
-        return sb.length() == 0 ? "غير موجود" : sb.toString();
+        return sb.length() == 0 ? Lang.t("غير موجود") : sb.toString();
     }
 
     private String formatUsage() {
         long total = folderSize(getFilesDir());
         long free = getFilesDir().getUsableSpace();
-        return "مساحة التطبيق: " + Ui.formatSize(total) + " · المتاح على الهاتف: " + Ui.formatSize(free);
+        return Lang.t("مساحة التطبيق: ") + Ui.formatSize(total) + Lang.t(" · المتاح على الهاتف: ") + Ui.formatSize(free);
     }
 
     private static long folderSize(File f) {

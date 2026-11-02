@@ -1,5 +1,7 @@
 package com.sarab.vm.ui;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -30,17 +32,17 @@ final class VmStarter {
     static void start(Activity a, VmConfig c, Runnable after) {
         if (c.shareFolder && !StorageAccess.has(a)) {
             new AlertDialog.Builder(a)
-                    .setTitle("إذن الوصول إلى الملفات")
-                    .setMessage("هذا النظام يستخدم المجلد المشترك مع الهاتف، ويحتاج التطبيق إذنًا للوصول إلى الملفات. فعّل الإذن في الشاشة التالية، ثم ارجع وشغّل النظام مرة أخرى.")
-                    .setPositiveButton("السماح", (d, w) -> StorageAccess.request(a))
-                    .setNegativeButton("إلغاء", null)
+                    .setTitle(Lang.t("إذن الوصول إلى الملفات"))
+                    .setMessage(Lang.t("هذا النظام يستخدم المجلد المشترك مع الهاتف، ويحتاج التطبيق إذنًا للوصول إلى الملفات. فعّل الإذن في الشاشة التالية، ثم ارجع وشغّل النظام مرة أخرى."))
+                    .setPositiveButton(Lang.t("السماح"), (d, w) -> StorageAccess.request(a))
+                    .setNegativeButton(Lang.t("إلغاء"), null)
                     .show();
             return;
         }
         if (Build.VERSION.SDK_INT >= 33 && a.checkSelfPermission(NOTIFICATION_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
             a.requestPermissions(new String[]{NOTIFICATION_PERMISSION}, 1);
         }
-        AlertDialog progress = progressDialog(a, "جارٍ تجهيز " + c.name + "…");
+        AlertDialog progress = progressDialog(a, Lang.t("جارٍ تجهيز ") + c.name + "…");
         progress.show();
         Handler main = new Handler(Looper.getMainLooper());
         Thread t = new Thread(() -> {
@@ -56,10 +58,10 @@ final class VmStarter {
                     progress.dismiss();
                     if (a.isFinishing() || a.isDestroyed()) return;
                     new AlertDialog.Builder(a)
-                            .setTitle("تعذر التشغيل")
+                            .setTitle(Lang.t("تعذر التشغيل"))
                             .setMessage(e.getMessage() == null ? e.toString() : e.getMessage())
-                            .setPositiveButton("حسنًا", null)
-                            .setNeutralButton("السجل", (d, w) -> LogActivity.open(a, c.id))
+                            .setPositiveButton(Lang.t("حسنًا"), null)
+                            .setNeutralButton(Lang.t("السجل"), (d, w) -> LogActivity.open(a, c.id))
                             .show();
                 });
             }
@@ -69,7 +71,7 @@ final class VmStarter {
 
     static AlertDialog progressDialog(Activity a, String message) {
         LinearLayout box = Ui.row(a);
-        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setLayoutDirection(Ui.dir());
         box.setPadding(Ui.dp(a, 24), Ui.dp(a, 24), Ui.dp(a, 24), Ui.dp(a, 24));
         ProgressBar bar = new ProgressBar(a);
         box.addView(bar, Ui.lp(Ui.dp(a, 36), Ui.dp(a, 36)));

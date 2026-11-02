@@ -32,7 +32,7 @@ public final class PortForwards {
             if (part.isEmpty()) continue;
             String[] hg = part.split(":");
             if (hg.length != 2) {
-                out.errors.add("صيغة المنفذ غير صحيحة: " + part + " (مثال: 8080:80)");
+                out.errors.add(Lang.t("صيغة المنفذ غير صحيحة: ") + part + Lang.t(" (مثال: 8080:80)"));
                 continue;
             }
             int host, guest;
@@ -40,19 +40,19 @@ public final class PortForwards {
                 host = Integer.parseInt(hg[0].trim());
                 guest = Integer.parseInt(hg[1].trim());
             } catch (NumberFormatException e) {
-                out.errors.add("رقم منفذ غير صحيح: " + part);
+                out.errors.add(Lang.t("رقم منفذ غير صحيح: ") + part);
                 continue;
             }
             if (host < 1024 || host > 65535) {
-                out.errors.add("منفذ الهاتف " + host + " يجب أن يكون بين 1024 و 65535");
+                out.errors.add(Lang.t("منفذ الهاتف ") + host + Lang.t(" يجب أن يكون بين 1024 و 65535"));
                 continue;
             }
             if (guest < 1 || guest > 65535) {
-                out.errors.add("منفذ النظام " + guest + " غير صالح");
+                out.errors.add(Lang.t("منفذ النظام ") + guest + Lang.t(" غير صالح"));
                 continue;
             }
             if (!hosts.add(host)) {
-                out.errors.add("منفذ الهاتف " + host + " مكرر");
+                out.errors.add(Lang.t("منفذ الهاتف ") + host + Lang.t(" مكرر"));
                 continue;
             }
             out.rules.add(new Rule(host, guest));

@@ -65,13 +65,13 @@ public final class VmConfig {
     /** Returns a list of problems; empty when the config can be started. */
     public java.util.List<String> validate() {
         java.util.List<String> errors = new java.util.ArrayList<>();
-        if (name == null || name.trim().isEmpty()) errors.add("الاسم فارغ");
-        if (ramMb < MIN_RAM_MB) errors.add("الذاكرة أقل من " + MIN_RAM_MB + " MB");
-        if (cpus < MIN_CPUS || cpus > MAX_CPUS) errors.add("عدد الأنوية يجب أن يكون بين 1 و 8");
+        if (name == null || name.trim().isEmpty()) errors.add(Lang.t("الاسم فارغ"));
+        if (ramMb < MIN_RAM_MB) errors.add(Lang.t("الذاكرة أقل من ") + MIN_RAM_MB + " MB");
+        if (cpus < MIN_CPUS || cpus > MAX_CPUS) errors.add(Lang.t("عدد الأنوية يجب أن يكون بين 1 و 8"));
         boolean hasIso = isoPath != null && !isoPath.isEmpty();
         boolean hasDisk = diskSizeGb > 0 || (diskPath != null && !diskPath.isEmpty());
-        if (!hasIso && !hasDisk) errors.add("اختر ملف صورة أو قرصًا صلبًا");
-        if (diskSizeGb < 0) errors.add("حجم القرص غير صالح");
+        if (!hasIso && !hasDisk) errors.add(Lang.t("اختر ملف صورة أو قرصًا صلبًا"));
+        if (diskSizeGb < 0) errors.add(Lang.t("حجم القرص غير صالح"));
         errors.addAll(PortForwards.parse(portForwards).errors);
         return errors;
     }

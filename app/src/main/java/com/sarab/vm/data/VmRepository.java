@@ -1,5 +1,7 @@
 package com.sarab.vm.data;
 
+import com.sarab.vm.core.Lang;
+
 import android.content.Context;
 
 import com.sarab.vm.core.VmConfig;
@@ -61,7 +63,7 @@ public final class VmRepository {
         }
         File target = new File(vmDir, c.id + ".properties");
         if (!tmp.renameTo(target)) {
-            throw new IOException("تعذر حفظ الإعدادات");
+            throw new IOException(Lang.t("تعذر حفظ الإعدادات"));
         }
     }
 

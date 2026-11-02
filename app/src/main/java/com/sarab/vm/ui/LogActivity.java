@@ -1,5 +1,7 @@
 package com.sarab.vm.ui;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -38,34 +40,35 @@ public final class LogActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Ui.init(this);
         super.onCreate(savedInstanceState);
         vmId = getIntent().getStringExtra(VmManager.EXTRA_VM_ID);
         VmConfig c = new VmRepository(this).get(vmId);
 
         LinearLayout root = Ui.column(this);
         root.setBackgroundColor(Ui.BG);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setLayoutDirection(Ui.dir());
         root.setFitsSystemWindows(true);
 
         LinearLayout header = Ui.row(this);
         header.setPadding(Ui.dp(this, 16), Ui.dp(this, 16), Ui.dp(this, 16), Ui.dp(this, 12));
-        TextView back = Ui.iconButton(this, "›", "رجوع", Ui.TEXT);
+        TextView back = Ui.iconButton(this, Ui.backGlyph(), Lang.t("رجوع"), Ui.TEXT);
         back.setOnClickListener(v -> finish());
         header.addView(back);
         LinearLayout titles = Ui.column(this);
         titles.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
-        titles.addView(Ui.text(this, "السجل", 20, Ui.TEXT, true));
+        titles.addView(Ui.text(this, Lang.t("السجل"), 20, Ui.TEXT, true));
         titles.addView(Ui.text(this, c == null ? "" : c.name, 12, Ui.MUTED, false));
         header.addView(titles, Ui.weight(1));
         root.addView(header);
 
         LinearLayout actions = Ui.row(this);
         actions.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 10));
-        TextView refresh = Ui.secondaryButton(this, "تحديث");
+        TextView refresh = Ui.secondaryButton(this, Lang.t("تحديث"));
         refresh.setOnClickListener(v -> load());
-        TextView copy = Ui.secondaryButton(this, "نسخ");
+        TextView copy = Ui.secondaryButton(this, Lang.t("نسخ"));
         copy.setOnClickListener(v -> copy());
-        TextView share = Ui.secondaryButton(this, "مشاركة");
+        TextView share = Ui.secondaryButton(this, Lang.t("مشاركة"));
         share.setOnClickListener(v -> share());
         for (TextView b : new TextView[]{refresh, copy, share}) {
             LinearLayout.LayoutParams p = Ui.weight(1);
@@ -93,7 +96,7 @@ public final class LogActivity extends Activity {
         File f = logFile();
         String text;
         if (!f.isFile()) {
-            text = "لا يوجد سجل بعد. يُنشأ السجل عند أول تشغيل لهذا النظام.";
+            text = Lang.t("لا يوجد سجل بعد. يُنشأ السجل عند أول تشغيل لهذا النظام.");
         } else {
             try (RandomAccessFile r = new RandomAccessFile(f, "r")) {
                 long len = r.length();
@@ -101,15 +104,15 @@ public final class LogActivity extends Activity {
                 byte[] b = new byte[(int) (len - start)];
                 r.seek(start);
                 r.readFully(b);
-                text = (start > 0 ? "… (آخر 200 KB فقط)\n" : "") + new String(b, StandardCharsets.UTF_8);
-                if (text.trim().isEmpty()) text = "السجل فارغ: لم يكتب QEMU أي رسالة.";
+                text = (start > 0 ? Lang.t("… (آخر 200 KB فقط)\n") : "") + new String(b, StandardCharsets.UTF_8);
+                if (text.trim().isEmpty()) text = Lang.t("السجل فارغ: لم يكتب QEMU أي رسالة.");
             } catch (IOException e) {
-                text = "تعذر قراءة السجل: " + e.getMessage();
+                text = Lang.t("تعذر قراءة السجل: ") + e.getMessage();
             }
         }
         VmManager.ExitInfo exit = VmManager.get(this).lastExit(vmId);
         if (exit != null && !VmManager.get(this).isRunning(vmId)) {
-            text += "\n\n— توقّف النظام برمز " + exit.exitCode + " بعد " + (exit.uptimeMs / 1000) + " ثانية —";
+            text += Lang.t("\n\n— توقّف النظام برمز ") + exit.exitCode + Lang.t(" بعد ") + (exit.uptimeMs / 1000) + Lang.t(" ثانية —");
         }
         body.setText(text);
         scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
@@ -119,7 +122,7 @@ public final class LogActivity extends Activity {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm != null) {
             cm.setPrimaryClip(ClipData.newPlainText("Sarab log", body.getText()));
-            Toast.makeText(this, "نُسخ السجل", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Lang.t("نُسخ السجل"), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -127,6 +130,6 @@ public final class LogActivity extends Activity {
         Intent i = new Intent(Intent.ACTION_SEND);
         i.setType("text/plain");
         i.putExtra(Intent.EXTRA_TEXT, body.getText().toString());
-        startActivity(Intent.createChooser(i, "مشاركة السجل"));
+        startActivity(Intent.createChooser(i, Lang.t("مشاركة السجل")));
     }
 }

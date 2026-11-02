@@ -64,7 +64,7 @@ public final class OsCatalog {
         /** Fills in a new machine for this system. */
         public VmConfig newConfig(String isoPath) {
             VmConfig c = new VmConfig();
-            c.name = title;
+            c.name = Lang.t(title);
             c.osType = VmConfig.OsType.LINUX;
             c.arch = arch;
             c.ramMb = ramMb;
@@ -135,14 +135,14 @@ public final class OsCatalog {
             String sha = field(block, "sha256");
             return new Resolved(base + iso, iso, sha, sha == null ? null : "SHA-256");
         }
-        throw new IOException("لم أجد نسخة alpine-virt في قائمة الإصدارات");
+        throw new IOException(Lang.t("لم أجد نسخة alpine-virt في قائمة الإصدارات"));
     }
 
     /** SHA256SUMS → debian-X.Y.Z-ARCH-netinst.iso */
     static Resolved parseDebian(String sums, String base, String arch) throws IOException {
         Pattern p = Pattern.compile("(?m)^([0-9a-fA-F]{64})\\s+\\*?(debian-[0-9.]+-" + Pattern.quote(arch) + "-netinst\\.iso)\\s*$");
         Matcher m = p.matcher(sums);
-        if (!m.find()) throw new IOException("لم أجد ملف netinst في قائمة Debian");
+        if (!m.find()) throw new IOException(Lang.t("لم أجد ملف netinst في قائمة Debian"));
         return new Resolved(base + m.group(2), m.group(2), m.group(1), "SHA-256");
     }
 
@@ -172,7 +172,7 @@ public final class OsCatalog {
             }
             return new Resolved(dir + file, file, md5, md5 == null ? null : "MD5");
         }
-        throw new IOException("تعذر العثور على نسخة Tiny Core" + (last == null ? "" : ": " + last.getMessage()));
+        throw new IOException(Lang.t("تعذر العثور على نسخة Tiny Core") + (last == null ? "" : ": " + last.getMessage()));
     }
 
     /** Highest "TinyCore-17.0.iso" style name in a folder listing. */

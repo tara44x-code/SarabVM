@@ -33,7 +33,7 @@ public final class Downloader {
             int n;
             while ((n = in.read(buf)) > 0) {
                 out.write(buf, 0, n);
-                if (out.size() > 2 * 1024 * 1024) throw new IOException("الملف أكبر من المتوقع");
+                if (out.size() > 2 * 1024 * 1024) throw new IOException(Lang.t("الملف أكبر من المتوقع"));
             }
             return new String(out.toByteArray(), StandardCharsets.UTF_8);
         } finally {
@@ -67,10 +67,10 @@ public final class Downloader {
                 if (digest != null) digest.update(buf, 0, n);
                 done += n;
                 if (progress != null && !progress.onProgress(done, total)) {
-                    throw new IOException("أُلغي التحميل");
+                    throw new IOException(Lang.t("أُلغي التحميل"));
                 }
             }
-            if (total > 0 && done != total) throw new IOException("انقطع التحميل قبل اكتماله");
+            if (total > 0 && done != total) throw new IOException(Lang.t("انقطع التحميل قبل اكتماله"));
         } catch (IOException e) {
             //noinspection ResultOfMethodCallIgnored
             part.delete();
@@ -83,11 +83,11 @@ public final class Downloader {
             if (!got.equalsIgnoreCase(checksum)) {
                 //noinspection ResultOfMethodCallIgnored
                 part.delete();
-                throw new IOException("الملف المحمّل تالف (لا يطابق رمز التحقق). حاول مرة أخرى.");
+                throw new IOException(Lang.t("الملف المحمّل تالف (لا يطابق رمز التحقق). حاول مرة أخرى."));
             }
         }
-        if (target.exists() && !target.delete()) throw new IOException("تعذر استبدال الملف القديم");
-        if (!part.renameTo(target)) throw new IOException("تعذر حفظ الملف");
+        if (target.exists() && !target.delete()) throw new IOException(Lang.t("تعذر استبدال الملف القديم"));
+        if (!part.renameTo(target)) throw new IOException(Lang.t("تعذر حفظ الملف"));
     }
 
     /** Opens a GET connection and follows redirects (including http → https). */
@@ -103,7 +103,7 @@ public final class Downloader {
             if (code >= 300 && code < 400) {
                 String location = c.getHeaderField("Location");
                 c.disconnect();
-                if (location == null) throw new IOException("تحويل بدون عنوان");
+                if (location == null) throw new IOException(Lang.t("تحويل بدون عنوان"));
                 current = new URL(new URL(current), location).toString();
                 continue;
             }
@@ -113,7 +113,7 @@ public final class Downloader {
             }
             return c;
         }
-        throw new IOException("تحويلات كثيرة جدًا");
+        throw new IOException(Lang.t("تحويلات كثيرة جدًا"));
     }
 
     static String hex(byte[] b) {

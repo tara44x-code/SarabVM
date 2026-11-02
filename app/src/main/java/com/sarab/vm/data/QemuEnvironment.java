@@ -1,5 +1,7 @@
 package com.sarab.vm.data;
 
+import com.sarab.vm.core.Lang;
+
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.content.pm.PackageInfo;
@@ -69,7 +71,7 @@ public final class QemuEnvironment {
         if (marker.isFile() && version.equals(readText(marker))) return;
 
         deleteRecursive(dataDir);
-        if (!dataDir.mkdirs() && !dataDir.isDirectory()) throw new IOException("تعذر إنشاء " + dataDir);
+        if (!dataDir.mkdirs() && !dataDir.isDirectory()) throw new IOException(Lang.t("تعذر إنشاء ") + dataDir);
         copyAssetDir(context.getAssets(), ASSET_DIR, dataDir);
         try (OutputStream o = new FileOutputStream(marker)) {
             o.write(version.getBytes(StandardCharsets.UTF_8));

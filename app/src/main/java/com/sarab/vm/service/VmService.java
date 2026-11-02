@@ -1,5 +1,7 @@
 package com.sarab.vm.service;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -46,10 +48,11 @@ public final class VmService extends Service {
     public void onCreate() {
         super.onCreate();
         current = this;
+        Lang.setEnglish("en".equals(getSharedPreferences("ui", MODE_PRIVATE).getString("lang", "ar")));
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL, "الأنظمة العاملة", NotificationManager.IMPORTANCE_LOW);
-            ch.setDescription("يبقي الأنظمة الوهمية تعمل في الخلفية");
+            NotificationChannel ch = new NotificationChannel(CHANNEL, Lang.t("الأنظمة العاملة"), NotificationManager.IMPORTANCE_LOW);
+            ch.setDescription(Lang.t("يبقي الأنظمة الوهمية تعمل في الخلفية"));
             nm.createNotificationChannel(ch);
         }
     }
@@ -75,14 +78,14 @@ public final class VmService extends Service {
         PendingIntent stop = PendingIntent.getService(this, 1,
                 new Intent(this, VmService.class).setAction(ACTION_STOP_ALL),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        String text = count <= 1 ? "نظام واحد يعمل" : count + " أنظمة تعمل";
+        String text = count <= 1 ? Lang.t("نظام واحد يعمل") : count + Lang.t(" أنظمة تعمل");
         return new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("سراب")
+                .setContentTitle(Lang.t("سراب"))
                 .setContentText(text)
                 .setContentIntent(open)
                 .setOngoing(true)
-                .addAction(new Notification.Action.Builder(null, "إيقاف الكل", stop).build())
+                .addAction(new Notification.Action.Builder(null, Lang.t("إيقاف الكل"), stop).build())
                 .build();
     }
 

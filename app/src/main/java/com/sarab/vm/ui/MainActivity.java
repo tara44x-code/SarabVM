@@ -1,5 +1,7 @@
 package com.sarab.vm.ui;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -30,7 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-/** Home screen: the list of machines ("أنظمتي"). */
+/** Home screen: the list of machines (Lang.t("أنظمتي")). */
 public final class MainActivity extends Activity implements VmManager.Listener {
 
     private static final int REQUEST_EXPORT = 31;
@@ -44,15 +46,23 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Ui.init(this);
         super.onCreate(savedInstanceState);
         repo = new VmRepository(this);
         manager = VmManager.get(this);
+        uiStamp = Ui.stamp();
         setContentView(buildUi());
     }
+
+    private String uiStamp;
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (uiStamp != null && !uiStamp.equals(Ui.stamp())) {
+            recreate(); // language or theme changed in Settings
+            return;
+        }
         manager.addListener(this);
         refresh();
     }
@@ -71,7 +81,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
     private View buildUi() {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Ui.BG);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setLayoutDirection(Ui.dir());
         root.setFitsSystemWindows(true);
 
         LinearLayout content = Ui.column(this);
@@ -81,23 +91,23 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         header.setPadding(Ui.dp(this, 20), Ui.dp(this, 20), Ui.dp(this, 20), Ui.dp(this, 8));
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.ic_logo);
-        logo.setContentDescription("سراب");
+        logo.setContentDescription(Lang.t("سراب"));
         header.addView(logo, Ui.lp(Ui.dp(this, 40), Ui.dp(this, 40)));
         LinearLayout brand = Ui.column(this);
         brand.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
-        brand.addView(Ui.text(this, "سراب", 22, Ui.TEXT, true));
+        brand.addView(Ui.text(this, Lang.t("سراب"), 22, Ui.TEXT, true));
         brand.addView(Ui.mono(this, "Sarab VM", 12, Ui.MUTED));
-        brand.addView(Ui.text(this, "المطوّر: مهند سات لنك", 11, Ui.SAND, false));
+        brand.addView(Ui.text(this, Lang.t("المطوّر: مهند سات لنك"), 11, Ui.SAND, false));
         header.addView(brand, Ui.weight(1));
-        TextView settings = Ui.iconButton(this, "⚙", "الإعدادات", Ui.TEXT);
+        TextView settings = Ui.iconButton(this, "⚙", Lang.t("الإعدادات"), Ui.TEXT);
         settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         header.addView(settings);
         content.addView(header);
 
         LinearLayout titles = Ui.column(this);
         titles.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), 0);
-        titles.addView(Ui.text(this, "أنظمتي", 26, Ui.TEXT, true));
-        titles.addView(Ui.text(this, "شغّل أي نظام من ملف صورة ISO أو IMG على هاتفك", 14, Ui.MUTED, false));
+        titles.addView(Ui.text(this, Lang.t("أنظمتي"), 26, Ui.TEXT, true));
+        titles.addView(Ui.text(this, Lang.t("شغّل أي نظام من ملف صورة ISO أو IMG على هاتفك"), 14, Ui.MUTED, false));
         content.addView(titles);
 
         HorizontalScrollView chipScroll = new HorizontalScrollView(this);
@@ -117,7 +127,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         root.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // floating "new system" button
-        TextView fab = Ui.text(this, "+  نظام جديد", 16, Ui.ON_SAND, true);
+        TextView fab = Ui.text(this, Lang.t("+  نظام جديد"), 16, Ui.ON_SAND, true);
         fab.setGravity(Gravity.CENTER);
         fab.setPadding(Ui.dp(this, 22), 0, Ui.dp(this, 22), 0);
         fab.setBackground(Ui.clickable(this, Ui.SAND, 18, 0, 0));
@@ -133,9 +143,9 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         // bottom navigation
         LinearLayout nav = Ui.row(this);
         nav.setBackgroundColor(Ui.NAV);
-        nav.addView(navItem("▦", "الأنظمة", true, null), Ui.weight(1));
-        nav.addView(navItem("◎", "ملفات الصور", false, v -> showImages()), Ui.weight(1));
-        nav.addView(navItem("☰", "الإعدادات", false,
+        nav.addView(navItem("▦", Lang.t("الأنظمة"), true, null), Ui.weight(1));
+        nav.addView(navItem("◎", Lang.t("ملفات الصور"), false, v -> showImages()), Ui.weight(1));
+        nav.addView(navItem("☰", Lang.t("الإعدادات"), false,
                 v -> startActivity(new Intent(this, SettingsActivity.class))), Ui.weight(1));
         root.addView(nav, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 76), Gravity.BOTTOM));
         return root;
@@ -143,9 +153,9 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     private void chooseNewSource() {
         new AlertDialog.Builder(this)
-                .setTitle("نظام جديد")
-                .setItems(new String[]{"من ملف ISO أو IMG على هاتفي", "تحميل نظام جاهز (Alpine، Debian، Tiny Core)",
-                        "استيراد نظام مصدَّر (.sarab)"}, (d, which) -> {
+                .setTitle(Lang.t("نظام جديد"))
+                .setItems(new String[]{Lang.t("من ملف ISO أو IMG على هاتفي"), Lang.t("تحميل نظام جاهز (Alpine، Debian، Tiny Core)"),
+                        Lang.t("استيراد نظام مصدَّر (.sarab)")}, (d, which) -> {
                     if (which == 0) startActivity(new Intent(this, NewVmActivity.class));
                     else if (which == 1) startActivity(new Intent(this, OsStoreActivity.class));
                     else startImport();
@@ -166,7 +176,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     private void buildChips() {
         chips.removeAllViews();
-        addChip("الكل", null);
+        addChip(Lang.t("الكل"), null);
         for (VmConfig.OsType t : VmConfig.OsType.values()) addChip(Ui.osLabel(t), t);
     }
 
@@ -198,8 +208,8 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         }
         if (shown == 0) {
             TextView empty = Ui.text(this, all.isEmpty()
-                    ? "لا توجد أنظمة بعد.\nاضغط «نظام جديد» واختر ملف ISO، أو حمّل نظامًا جاهزًا."
-                    : "لا توجد أنظمة من هذا النوع.", 15, Ui.MUTED, false);
+                    ? Lang.t("لا توجد أنظمة بعد.\nاضغط «نظام جديد» واختر ملف ISO، أو حمّل نظامًا جاهزًا.")
+                    : Lang.t("لا توجد أنظمة من هذا النوع."), 15, Ui.MUTED, false);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, Ui.dp(this, 60), 0, 0);
             list.addView(empty);
@@ -227,20 +237,20 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         info.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
         info.addView(Ui.text(this, c.name, 17, Ui.TEXT, true));
         info.addView(Ui.mono(this, c.summary(), 12, Ui.MUTED));
-        if (c.snapshotSaved && !running) info.addView(Ui.text(this, "◉ حالة محفوظة — يكمل من حيث توقف", 11, Ui.SAND, true));
+        if (c.snapshotSaved && !running) info.addView(Ui.text(this, Lang.t("◉ حالة محفوظة — يكمل من حيث توقف"), 11, Ui.SAND, true));
         top.addView(info, Ui.weight(1));
 
         if (running) {
-            top.addView(Ui.text(this, "● يعمل", 12, Ui.ACCENT, true));
+            top.addView(Ui.text(this, Lang.t("● يعمل"), 12, Ui.ACCENT, true));
             card.addView(top);
             LinearLayout actions = Ui.row(this);
             actions.setPadding(0, Ui.dp(this, 14), 0, 0);
-            TextView open = Ui.primaryButton(this, "فتح الشاشة");
+            TextView open = Ui.primaryButton(this, Lang.t("فتح الشاشة"));
             open.setTextSize(15);
             open.setMinHeight(Ui.dp(this, 44));
             open.setOnClickListener(v -> openDisplay(c));
             actions.addView(open, Ui.weight(1));
-            TextView stop = Ui.iconButton(this, "■", "إيقاف", Ui.SAND);
+            TextView stop = Ui.iconButton(this, "■", Lang.t("إيقاف"), Ui.SAND);
             stop.setOnClickListener(v -> confirmStop(c));
             LinearLayout.LayoutParams sp = (LinearLayout.LayoutParams) stop.getLayoutParams();
             sp.setMarginStart(Ui.dp(this, 8));
@@ -250,7 +260,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
             TextView play = Ui.text(this, "▶", 16, Ui.ACCENT, true);
             play.setGravity(Gravity.CENTER);
             play.setBackground(Ui.clickable(this, Ui.SURFACE_2, 22, Ui.BORDER, 1));
-            play.setContentDescription("تشغيل " + c.name);
+            play.setContentDescription(Lang.t("تشغيل ") + c.name);
             play.setClickable(true);
             play.setOnClickListener(v -> startVm(c));
             top.addView(play, Ui.lp(Ui.dp(this, 44), Ui.dp(this, 44)));
@@ -275,10 +285,10 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     private void confirmStop(VmConfig c) {
         new AlertDialog.Builder(this)
-                .setTitle("إيقاف " + c.name + "؟")
-                .setMessage("سيتوقف النظام فورًا وقد تضيع البيانات غير المحفوظة. للإيقاف الآمن افتح الشاشة واضغط زر الطاقة.")
-                .setPositiveButton("إيقاف", (d, w) -> new Thread(() -> manager.forceStop(c.id), "stop-vm").start())
-                .setNegativeButton("إلغاء", null)
+                .setTitle(Lang.t("إيقاف ") + c.name + Lang.t("؟"))
+                .setMessage(Lang.t("سيتوقف النظام فورًا وقد تضيع البيانات غير المحفوظة. للإيقاف الآمن افتح الشاشة واضغط زر الطاقة."))
+                .setPositiveButton(Lang.t("إيقاف"), (d, w) -> new Thread(() -> manager.forceStop(c.id), "stop-vm").start())
+                .setNegativeButton(Lang.t("إلغاء"), null)
                 .show();
     }
 
@@ -289,27 +299,27 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         PortForwards ports = PortForwards.parse(c.portForwards);
         if (running && !ports.rules.isEmpty()) {
             for (PortForwards.Rule r : ports.rules) {
-                labels.add("فتح المنفذ " + r.hostPort + " في المتصفح");
+                labels.add(Lang.t("فتح المنفذ ") + r.hostPort + Lang.t(" في المتصفح"));
                 actions.add(() -> openInBrowser(r.hostPort));
             }
         }
         if (!running && c.snapshotSaved) {
-            labels.add("تشغيل من جديد (تجاهل الحالة المحفوظة)");
+            labels.add(Lang.t("تشغيل من جديد (تجاهل الحالة المحفوظة)"));
             actions.add(() -> {
                 c.snapshotSaved = false;
                 saveQuietly(c);
                 startVm(c);
             });
         }
-        labels.add("تعديل");
+        labels.add(Lang.t("تعديل"));
         actions.add(() -> whenStopped(c, () -> startActivity(VmManager.withVm(new Intent(this, NewVmActivity.class), c.id))));
-        labels.add("نسخة مكررة");
+        labels.add(Lang.t("نسخة مكررة"));
         actions.add(() -> whenStopped(c, () -> duplicate(c)));
-        labels.add("تصدير إلى ملف (.sarab)");
+        labels.add(Lang.t("تصدير إلى ملف (.sarab)"));
         actions.add(() -> whenStopped(c, () -> askExport(c)));
-        labels.add("السجل (رسائل QEMU)");
+        labels.add(Lang.t("السجل (رسائل QEMU)"));
         actions.add(() -> LogActivity.open(this, c.id));
-        labels.add("حذف");
+        labels.add(Lang.t("حذف"));
         actions.add(() -> whenStopped(c, () -> confirmDelete(c)));
         new AlertDialog.Builder(this)
                 .setTitle(c.name)
@@ -319,7 +329,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     private void whenStopped(VmConfig c, Runnable r) {
         if (manager.isRunning(c.id)) {
-            new AlertDialog.Builder(this).setMessage("أوقف النظام أولًا").setPositiveButton("حسنًا", null).show();
+            new AlertDialog.Builder(this).setMessage(Lang.t("أوقف النظام أولًا")).setPositiveButton(Lang.t("حسنًا"), null).show();
         } else {
             r.run();
         }
@@ -337,17 +347,17 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:" + port)));
         } catch (RuntimeException e) {
-            Toast.makeText(this, "لا يوجد متصفح", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Lang.t("لا يوجد متصفح"), Toast.LENGTH_SHORT).show();
         }
     }
 
     // ------------------------------------------------------------ duplicate / export / import
 
     private void duplicate(VmConfig c) {
-        runWithProgress("جارٍ نسخ " + c.name + "…", progress -> {
+        runWithProgress(Lang.t("جارٍ نسخ ") + c.name + "…", progress -> {
             VmConfig copy = VmArchive.duplicate(c, repo.diskFileFor(c).getParentFile(), progress);
             repo.save(copy);
-            return "أُنشئت «" + copy.name + "»";
+            return Lang.t("أُنشئت «") + copy.name + "»";
         });
     }
 
@@ -358,11 +368,11 @@ public final class MainActivity extends Activity implements VmManager.Listener {
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("تصدير " + c.name)
-                .setMessage("تضمين ملف الصورة (" + new File(c.isoPath).getName() + "، " + Ui.formatSize(new File(c.isoPath).length())
-                        + ")؟ مفيد إذا ستنقل النظام لهاتف آخر.")
-                .setPositiveButton("مع ملف الصورة", (d, w) -> startExport(c, true))
-                .setNegativeButton("بدونه", (d, w) -> startExport(c, false))
+                .setTitle(Lang.t("تصدير ") + c.name)
+                .setMessage(Lang.t("تضمين ملف الصورة (") + new File(c.isoPath).getName() + Lang.t("، ") + Ui.formatSize(new File(c.isoPath).length())
+                        + Lang.t(")؟ مفيد إذا ستنقل النظام لهاتف آخر."))
+                .setPositiveButton(Lang.t("مع ملف الصورة"), (d, w) -> startExport(c, true))
+                .setNegativeButton(Lang.t("بدونه"), (d, w) -> startExport(c, false))
                 .show();
     }
 
@@ -379,7 +389,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         try {
             startActivityForResult(i, REQUEST_EXPORT);
         } catch (RuntimeException e) {
-            Toast.makeText(this, "لا يوجد تطبيق لحفظ الملفات", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, Lang.t("لا يوجد تطبيق لحفظ الملفات"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -390,7 +400,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         try {
             startActivityForResult(i, REQUEST_IMPORT);
         } catch (RuntimeException e) {
-            Toast.makeText(this, "لا يوجد تطبيق لاختيار الملفات", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, Lang.t("لا يوجد تطبيق لاختيار الملفات"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -402,23 +412,23 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         if (requestCode == REQUEST_EXPORT && pendingExport != null) {
             VmConfig c = pendingExport;
             boolean withImage = pendingExportImage;
-            runWithProgress("جارٍ تصدير " + c.name + "…", progress -> {
+            runWithProgress(Lang.t("جارٍ تصدير ") + c.name + "…", progress -> {
                 try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
-                    if (out == null) throw new IOException("تعذر فتح الملف للكتابة");
+                    if (out == null) throw new IOException(Lang.t("تعذر فتح الملف للكتابة"));
                     VmArchive.export(c, withImage, out, progress);
                 }
-                return "صُدّر النظام ✓";
+                return Lang.t("صُدّر النظام ✓");
             });
         } else if (requestCode == REQUEST_IMPORT) {
-            runWithProgress("جارٍ استيراد النظام…", progress -> {
+            runWithProgress(Lang.t("جارٍ استيراد النظام…"), progress -> {
                 VmConfig c;
                 try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
-                    if (in == null) throw new IOException("تعذر فتح الملف");
+                    if (in == null) throw new IOException(Lang.t("تعذر فتح الملف"));
                     c = VmArchive.importFrom(in, repo.diskFileFor(new VmConfig()).getParentFile(),
                             new ImageStore(this).directory(), progress);
                 }
                 repo.save(c);
-                return "استُورد «" + c.name + "»" + (c.isoPath.isEmpty() ? "\nملاحظة: ملف الصورة غير موجود، اختره من «تعديل» إذا احتجته." : "");
+                return Lang.t("استُورد «") + c.name + "»" + (c.isoPath.isEmpty() ? Lang.t("\nملاحظة: ملف الصورة غير موجود، اختره من «تعديل» إذا احتجته.") : "");
             });
         }
     }
@@ -430,7 +440,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
     /** Runs a long file job with a progress dialog, then refreshes the list. */
     private void runWithProgress(String title, Job job) {
         LinearLayout box = Ui.column(this);
-        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setLayoutDirection(Ui.dir());
         box.setPadding(Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 8));
         android.widget.ProgressBar bar = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         bar.setIndeterminate(true);
@@ -440,7 +450,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         box.addView(amount);
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
         AlertDialog dialog = new AlertDialog.Builder(this).setTitle(title).setView(box).setCancelable(false)
-                .setNegativeButton("إلغاء", (d, w) -> cancelled.set(true)).create();
+                .setNegativeButton(Lang.t("إلغاء"), (d, w) -> cancelled.set(true)).create();
         dialog.show();
         android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
         long[] last = {0};
@@ -462,14 +472,14 @@ public final class MainActivity extends Activity implements VmManager.Listener {
                     return !cancelled.get();
                 });
             } catch (IOException | RuntimeException e) {
-                result = "تعذرت العملية: " + (e.getMessage() == null ? e.toString() : e.getMessage());
+                result = Lang.t("تعذرت العملية: ") + (e.getMessage() == null ? e.toString() : e.getMessage());
             }
             String msg = result;
             main.post(() -> {
                 dialog.dismiss();
                 refresh();
                 if (!isFinishing() && !isDestroyed() && !cancelled.get()) {
-                    new AlertDialog.Builder(this).setMessage(msg).setPositiveButton("حسنًا", null).show();
+                    new AlertDialog.Builder(this).setMessage(msg).setPositiveButton(Lang.t("حسنًا"), null).show();
                 }
             });
         }, "file-job").start();
@@ -477,13 +487,13 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     private void confirmDelete(VmConfig c) {
         new AlertDialog.Builder(this)
-                .setTitle("حذف " + c.name + "؟")
-                .setMessage("سيُحذف النظام وقرصه الصلب الوهمي. ملف الصورة (ISO) يبقى في «ملفات الصور».")
-                .setPositiveButton("حذف", (d, w) -> {
+                .setTitle(Lang.t("حذف ") + c.name + Lang.t("؟"))
+                .setMessage(Lang.t("سيُحذف النظام وقرصه الصلب الوهمي. ملف الصورة (ISO) يبقى في «ملفات الصور»."))
+                .setPositiveButton(Lang.t("حذف"), (d, w) -> {
                     repo.delete(c);
                     refresh();
                 })
-                .setNegativeButton("إلغاء", null)
+                .setNegativeButton(Lang.t("إلغاء"), null)
                 .show();
     }
 
@@ -492,9 +502,9 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         List<File> files = store.list();
         if (files.isEmpty()) {
             new AlertDialog.Builder(this)
-                    .setTitle("ملفات الصور")
-                    .setMessage("لا توجد ملفات بعد. تُضاف الملفات عند إنشاء نظام جديد.")
-                    .setPositiveButton("حسنًا", null)
+                    .setTitle(Lang.t("ملفات الصور"))
+                    .setMessage(Lang.t("لا توجد ملفات بعد. تُضاف الملفات عند إنشاء نظام جديد."))
+                    .setPositiveButton(Lang.t("حسنًا"), null)
                     .show();
             return;
         }
@@ -503,17 +513,17 @@ public final class MainActivity extends Activity implements VmManager.Listener {
             items[i] = files.get(i).getName() + "  ·  " + Ui.formatSize(files.get(i).length());
         }
         new AlertDialog.Builder(this)
-                .setTitle("ملفات الصور (المس للحذف)")
+                .setTitle(Lang.t("ملفات الصور (المس للحذف)"))
                 .setItems(items, (d, which) -> {
                     File f = files.get(which);
                     new AlertDialog.Builder(this)
-                            .setTitle("حذف " + f.getName() + "؟")
-                            .setMessage("الأنظمة التي تستخدم هذا الملف لن تقلع منه بعد حذفه.")
-                            .setPositiveButton("حذف", (d2, w2) -> store.delete(f))
-                            .setNegativeButton("إلغاء", null)
+                            .setTitle(Lang.t("حذف ") + f.getName() + Lang.t("؟"))
+                            .setMessage(Lang.t("الأنظمة التي تستخدم هذا الملف لن تقلع منه بعد حذفه."))
+                            .setPositiveButton(Lang.t("حذف"), (d2, w2) -> store.delete(f))
+                            .setNegativeButton(Lang.t("إلغاء"), null)
                             .show();
                 })
-                .setPositiveButton("إغلاق", null)
+                .setPositiveButton(Lang.t("إغلاق"), null)
                 .show();
     }
 }

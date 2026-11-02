@@ -1,5 +1,7 @@
 package com.sarab.vm.ui;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
@@ -72,6 +74,7 @@ public final class NewVmActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Ui.init(this);
         super.onCreate(savedInstanceState);
         repo = new VmRepository(this);
         String id = getIntent().getStringExtra(VmManager.EXTRA_VM_ID);
@@ -124,7 +127,7 @@ public final class NewVmActivity extends Activity {
                 config.arch = VmConfig.Arch.X86_64;
                 break;
             default:
-                if (!nameEdited) config.name = "نظام مخصص";
+                if (!nameEdited) config.name = Lang.t("نظام مخصص");
                 config.ramMb = 1024;
                 break;
         }
@@ -133,16 +136,16 @@ public final class NewVmActivity extends Activity {
     private View buildUi() {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Ui.BG);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setLayoutDirection(Ui.dir());
         root.setFitsSystemWindows(true);
 
         LinearLayout content = Ui.column(this);
         LinearLayout header = Ui.row(this);
         header.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 12));
-        TextView back = Ui.iconButton(this, "›", "رجوع", Ui.TEXT);
+        TextView back = Ui.iconButton(this, Ui.backGlyph(), Lang.t("رجوع"), Ui.TEXT);
         back.setOnClickListener(v -> finish());
         header.addView(back);
-        TextView title = Ui.text(this, editing ? "تعديل النظام" : "نظام جديد", 22, Ui.TEXT, true);
+        TextView title = Ui.text(this, editing ? Lang.t("تعديل النظام") : Lang.t("نظام جديد"), 22, Ui.TEXT, true);
         title.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
         header.addView(title);
         content.addView(header);
@@ -151,22 +154,22 @@ public final class NewVmActivity extends Activity {
         LinearLayout form = Ui.column(this);
         form.setPadding(Ui.dp(this, 20), Ui.dp(this, 4), Ui.dp(this, 20), Ui.dp(this, 120));
 
-        form.addView(sectionLabel("نوع النظام"));
+        form.addView(sectionLabel(Lang.t("نوع النظام")));
         typeGrid = Ui.column(this);
         form.addView(typeGrid);
 
-        form.addView(sectionLabel("الاسم"));
+        form.addView(sectionLabel(Lang.t("الاسم")));
         nameField = new EditText(this);
         nameField.setSingleLine(true);
         nameField.setInputType(InputType.TYPE_CLASS_TEXT);
         nameField.setTextColor(Ui.TEXT);
         nameField.setHintTextColor(Ui.MUTED);
-        nameField.setHint("مثلًا: Ubuntu 24.04");
+        nameField.setHint(Lang.t("مثلًا: Ubuntu 24.04"));
         nameField.setTextSize(15);
         nameField.setBackground(Ui.rounded(this, Ui.SURFACE, 14, Ui.BORDER, 1));
         nameField.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
         nameField.setText(config.name);
-        nameField.setContentDescription("الاسم");
+        nameField.setContentDescription(Lang.t("الاسم"));
         nameField.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
@@ -177,7 +180,7 @@ public final class NewVmActivity extends Activity {
         });
         form.addView(nameField, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 50)));
 
-        form.addView(sectionLabel("ملف الصورة"));
+        form.addView(sectionLabel(Lang.t("ملف الصورة")));
         LinearLayout picker = Ui.row(this);
         picker.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
         picker.setBackground(Ui.clickable(this, Ui.ACCENT_BG, 14, Ui.ACCENT, 1.5f));
@@ -192,19 +195,19 @@ public final class NewVmActivity extends Activity {
         picker.addView(pickerText, Ui.weight(1));
         form.addView(picker);
 
-        form.addView(sectionLabel("الموارد"));
+        form.addView(sectionLabel(Lang.t("الموارد")));
         LinearLayout res = Ui.column(this);
         res.setPadding(Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 14), Ui.dp(this, 10));
         res.setBackground(Ui.rounded(this, Ui.SURFACE, 18, Ui.BORDER, 1));
 
         LinearLayout ramHead = Ui.row(this);
-        ramHead.addView(Ui.text(this, "الذاكرة RAM", 14, Ui.TEXT, true), Ui.weight(1));
+        ramHead.addView(Ui.text(this, Lang.t("الذاكرة RAM"), 14, Ui.TEXT, true), Ui.weight(1));
         ramLabel = Ui.mono(this, "", 14, Ui.ACCENT);
         ramHead.addView(ramLabel);
         res.addView(ramHead);
         ramBar = new SeekBar(this);
         ramBar.setMax((ramMax - RAM_MIN) / RAM_STEP);
-        ramBar.setContentDescription("الذاكرة");
+        ramBar.setContentDescription(Lang.t("الذاكرة"));
         ramBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar s, int p, boolean user) {
                 if (user) {
@@ -220,15 +223,15 @@ public final class NewVmActivity extends Activity {
 
         LinearLayout cpuRow = Ui.row(this);
         cpuRow.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 10));
-        cpuRow.addView(Ui.text(this, "أنوية المعالج", 14, Ui.TEXT, true), Ui.weight(1));
-        TextView minus = Ui.iconButton(this, "−", "تقليل", Ui.TEXT);
+        cpuRow.addView(Ui.text(this, Lang.t("أنوية المعالج"), 14, Ui.TEXT, true), Ui.weight(1));
+        TextView minus = Ui.iconButton(this, "−", Lang.t("تقليل"), Ui.TEXT);
         minus.setOnClickListener(v -> {
             config.cpus = Math.max(VmConfig.MIN_CPUS, config.cpus - 1);
             refreshCpu();
         });
         cpuLabel = Ui.mono(this, "", 16, Ui.TEXT);
         cpuLabel.setGravity(Gravity.CENTER);
-        TextView plus = Ui.iconButton(this, "+", "زيادة", Ui.TEXT);
+        TextView plus = Ui.iconButton(this, "+", Lang.t("زيادة"), Ui.TEXT);
         int maxCpus = Math.min(VmConfig.MAX_CPUS, Runtime.getRuntime().availableProcessors());
         plus.setOnClickListener(v -> {
             config.cpus = Math.min(maxCpus, config.cpus + 1);
@@ -242,23 +245,23 @@ public final class NewVmActivity extends Activity {
 
         LinearLayout archHead = Ui.row(this);
         archHead.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 6));
-        archHead.addView(Ui.text(this, "المعمارية", 14, Ui.TEXT, true));
+        archHead.addView(Ui.text(this, Lang.t("المعمارية"), 14, Ui.TEXT, true));
         res.addView(archHead);
         archRow = Ui.row(this);
         archRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         res.addView(archRow);
-        res.addView(Ui.text(this, "x86_64 لأغلب أنظمة ويندوز ولينكس وأندرويد x86. aarch64 لأنظمة ARM وهو الأسرع على الهاتف.",
+        res.addView(Ui.text(this, Lang.t("x86_64 لأغلب أنظمة ويندوز ولينكس وأندرويد x86. aarch64 لأنظمة ARM وهو الأسرع على الهاتف."),
                 12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 6));
         form.addView(res);
 
-        form.addView(sectionLabel("القرص الصلب الوهمي"));
+        form.addView(sectionLabel(Lang.t("القرص الصلب الوهمي")));
         diskRow = Ui.row(this);
         diskRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         form.addView(diskRow);
         diskNote = Ui.text(this, "", 12, Ui.MUTED, false);
         form.addView(diskNote, Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
 
-        form.addView(sectionLabel("تحويل المنافذ (اختياري)"));
+        form.addView(sectionLabel(Lang.t("تحويل المنافذ (اختياري)")));
         portsField = new EditText(this);
         portsField.setSingleLine(true);
         portsField.setInputType(InputType.TYPE_CLASS_TEXT);
@@ -271,12 +274,12 @@ public final class NewVmActivity extends Activity {
         portsField.setBackground(Ui.rounded(this, Ui.SURFACE, 14, Ui.BORDER, 1));
         portsField.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
         portsField.setText(config.portForwards);
-        portsField.setContentDescription("تحويل المنافذ");
+        portsField.setContentDescription(Lang.t("تحويل المنافذ"));
         form.addView(portsField, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 50)));
-        form.addView(Ui.text(this, "منفذ الهاتف:منفذ النظام. مثلًا 8080:80 يجعل موقعًا يعمل داخل النظام على المنفذ 80 يفتح من متصفح هاتفك على http://127.0.0.1:8080. و 2222:22 للدخول عبر SSH.",
+        form.addView(Ui.text(this, Lang.t("منفذ الهاتف:منفذ النظام. مثلًا 8080:80 يجعل موقعًا يعمل داخل النظام على المنفذ 80 يفتح من متصفح هاتفك على http://127.0.0.1:8080. و 2222:22 للدخول عبر SSH."),
                 12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
 
-        form.addView(sectionLabel("المجلد المشترك مع الهاتف"));
+        form.addView(sectionLabel(Lang.t("المجلد المشترك مع الهاتف")));
         LinearLayout share = Ui.column(this);
         share.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 10));
         share.setBackground(Ui.rounded(this, Ui.SURFACE, 18, Ui.BORDER, 1));
@@ -290,11 +293,11 @@ public final class NewVmActivity extends Activity {
             writeSwitch.setEnabled(on);
         });
         writeSwitch.setOnCheckedChangeListener((b, on) -> config.shareWritable = on);
-        share.addView(switchRow("إظهار مجلد الهاتف داخل النظام كقرص", shareSwitch));
+        share.addView(switchRow(Lang.t("إظهار مجلد الهاتف داخل النظام كقرص"), shareSwitch));
         share.addView(Ui.divider(this));
-        share.addView(switchRow("السماح للنظام بالكتابة فيه (تجريبي)", writeSwitch));
+        share.addView(switchRow(Lang.t("السماح للنظام بالكتابة فيه (تجريبي)"), writeSwitch));
         String path = new SettingsStore(this).load().sharedFolderPath;
-        share.addView(Ui.text(this, "المجلد: " + path + "\nيظهر كقرص FAT صغير (حتى 480 MB). بدون الكتابة، النقل يكون من الهاتف إلى النظام فقط. غيّر المجلد من الإعدادات.",
+        share.addView(Ui.text(this, Lang.t("المجلد: ") + path + Lang.t("\nيظهر كقرص FAT صغير (حتى 480 MB). بدون الكتابة، النقل يكون من الهاتف إلى النظام فقط. غيّر المجلد من الإعدادات."),
                 12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
         form.addView(share);
 
@@ -305,10 +308,10 @@ public final class NewVmActivity extends Activity {
         LinearLayout bottom = Ui.row(this);
         bottom.setBackgroundColor(Ui.BG);
         bottom.setPadding(Ui.dp(this, 20), Ui.dp(this, 12), Ui.dp(this, 20), Ui.dp(this, 16));
-        TextView start = Ui.primaryButton(this, editing ? "حفظ وتشغيل" : "إنشاء وتشغيل");
+        TextView start = Ui.primaryButton(this, editing ? Lang.t("حفظ وتشغيل") : Lang.t("إنشاء وتشغيل"));
         start.setOnClickListener(v -> save(true));
         bottom.addView(start, Ui.weight(1));
-        TextView saveOnly = Ui.secondaryButton(this, "حفظ");
+        TextView saveOnly = Ui.secondaryButton(this, Lang.t("حفظ"));
         saveOnly.setOnClickListener(v -> save(false));
         LinearLayout.LayoutParams sp = Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, 52));
         sp.setMarginStart(Ui.dp(this, 10));
@@ -346,7 +349,7 @@ public final class NewVmActivity extends Activity {
     private void refreshTypes() {
         typeGrid.removeAllViews();
         VmConfig.OsType[] types = VmConfig.OsType.values();
-        String[] hints = {"PE · 7 · 10", "Ubuntu · Debian", "Android x86", "أي ملف ISO"};
+        String[] hints = {"PE · 7 · 10", "Ubuntu · Debian", "Android x86", Lang.t("أي ملف ISO")};
         LinearLayout row = null;
         for (int i = 0; i < types.length; i++) {
             if (i % 2 == 0) {
@@ -359,7 +362,7 @@ public final class NewVmActivity extends Activity {
             cell.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
             cell.setBackground(Ui.clickable(this, on ? Ui.ACCENT_BG : Ui.SURFACE, 16, on ? Ui.ACCENT : Ui.BORDER, on ? 2 : 1));
             cell.setClickable(true);
-            cell.setContentDescription(Ui.osLabel(t) + (on ? "، محدد" : ""));
+            cell.setContentDescription(Ui.osLabel(t) + (on ? Lang.t("، محدد") : ""));
             cell.setOnClickListener(v -> {
                 applyTypeDefaults(t);
                 if (!nameEdited) nameField.setText(config.name);
@@ -380,10 +383,10 @@ public final class NewVmActivity extends Activity {
 
     private void refreshImage() {
         if (config.isoPath == null || config.isoPath.isEmpty()) {
-            imageLabel.setText("اختر ملف ISO أو IMG");
+            imageLabel.setText(Lang.t("اختر ملف ISO أو IMG"));
         } else {
             File f = new File(config.isoPath);
-            imageLabel.setText(f.getName() + (f.isFile() ? "  ·  " + Ui.formatSize(f.length()) : "  (غير موجود)"));
+            imageLabel.setText(f.getName() + (f.isFile() ? "  ·  " + Ui.formatSize(f.length()) : Lang.t("  (غير موجود)")));
         }
     }
 
@@ -420,13 +423,13 @@ public final class NewVmActivity extends Activity {
         diskRow.removeAllViews();
         boolean hasDisk = config.diskPath != null && !config.diskPath.isEmpty() && new File(config.diskPath).isFile();
         if (hasDisk) {
-            diskNote.setText("القرص موجود (" + config.diskSizeGb + " GB، يشغل حاليًا "
-                    + Ui.formatSize(new File(config.diskPath).length()) + "). لتغيير حجمه احذف النظام وأنشئه من جديد.");
+            diskNote.setText(Lang.t("القرص موجود (") + config.diskSizeGb + Lang.t(" GB، يشغل حاليًا ")
+                    + Ui.formatSize(new File(config.diskPath).length()) + Lang.t("). لتغيير حجمه احذف النظام وأنشئه من جديد."));
             return;
         }
         for (int size : DISK_OPTIONS) {
             boolean on = config.diskSizeGb == size;
-            TextView b = Ui.mono(this, size == 0 ? "بدون" : size + " GB", 13, on ? Ui.ON_ACCENT : Ui.TEXT_2);
+            TextView b = Ui.mono(this, size == 0 ? Lang.t("بدون") : size + " GB", 13, on ? Ui.ON_ACCENT : Ui.TEXT_2);
             b.setGravity(Gravity.CENTER);
             b.setBackground(on ? Ui.clickable(this, Ui.ACCENT, 10, 0, 0) : Ui.clickable(this, Ui.SURFACE, 10, Ui.BORDER, 1));
             b.setClickable(true);
@@ -439,8 +442,8 @@ public final class NewVmActivity extends Activity {
             diskRow.addView(b, p);
         }
         diskNote.setText(config.diskSizeGb == 0
-                ? "بدون قرص: مناسب لأنظمة تعمل من الصورة مباشرة مثل Windows PE. لن يُحفظ أي شيء."
-                : "يُنشأ القرص عند أول تشغيل، ويكبر حجمه الفعلي تدريجيًا حتى " + config.diskSizeGb + " GB.");
+                ? Lang.t("بدون قرص: مناسب لأنظمة تعمل من الصورة مباشرة مثل Windows PE. لن يُحفظ أي شيء.")
+                : Lang.t("يُنشأ القرص عند أول تشغيل، ويكبر حجمه الفعلي تدريجيًا حتى ") + config.diskSizeGb + " GB.");
     }
 
     // ------------------------------------------------------------ image picking
@@ -452,7 +455,7 @@ public final class NewVmActivity extends Activity {
         try {
             startActivityForResult(i, REQUEST_IMAGE);
         } catch (RuntimeException e) {
-            Toast.makeText(this, "لا يوجد تطبيق لاختيار الملفات", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, Lang.t("لا يوجد تطبيق لاختيار الملفات"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -468,9 +471,9 @@ public final class NewVmActivity extends Activity {
         String name = store.displayName(uri);
 
         LinearLayout box = Ui.column(this);
-        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setLayoutDirection(Ui.dir());
         box.setPadding(Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 8));
-        TextView label = Ui.text(this, "جارٍ نسخ " + name + "…", 14, Ui.TEXT, false);
+        TextView label = Ui.text(this, Lang.t("جارٍ نسخ ") + name + "…", 14, Ui.TEXT, false);
         box.addView(label);
         ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         bar.setMax(1000);
@@ -480,10 +483,10 @@ public final class NewVmActivity extends Activity {
 
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("نسخ ملف الصورة")
+                .setTitle(Lang.t("نسخ ملف الصورة"))
                 .setView(box)
                 .setCancelable(false)
-                .setNegativeButton("إلغاء", (d, w) -> cancelled.set(true))
+                .setNegativeButton(Lang.t("إلغاء"), (d, w) -> cancelled.set(true))
                 .create();
         dialog.show();
 
@@ -511,9 +514,9 @@ public final class NewVmActivity extends Activity {
                 main.post(() -> {
                     dialog.dismiss();
                     if (!cancelled.get()) {
-                        new AlertDialog.Builder(this).setTitle("تعذر نسخ الملف")
+                        new AlertDialog.Builder(this).setTitle(Lang.t("تعذر نسخ الملف"))
                                 .setMessage(String.valueOf(e.getMessage()))
-                                .setPositiveButton("حسنًا", null).show();
+                                .setPositiveButton(Lang.t("حسنًا"), null).show();
                     }
                 });
             }
@@ -528,13 +531,13 @@ public final class NewVmActivity extends Activity {
         config.portForwards = portsField.getText().toString().trim();
         if (editing && config.snapshotSaved && !machineKey(config).equals(originalMachine)) {
             config.snapshotSaved = false; // the saved state belongs to the old machine setup
-            Toast.makeText(this, "تغيّرت مواصفات النظام، لذلك سيبدأ من جديد بدل الحالة المحفوظة", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, Lang.t("تغيّرت مواصفات النظام، لذلك سيبدأ من جديد بدل الحالة المحفوظة"), Toast.LENGTH_LONG).show();
         }
         List<String> errors = config.validate();
         if (!errors.isEmpty()) {
-            new AlertDialog.Builder(this).setTitle("أكمل البيانات")
+            new AlertDialog.Builder(this).setTitle(Lang.t("أكمل البيانات"))
                     .setMessage(String.join("\n", errors))
-                    .setPositiveButton("حسنًا", null).show();
+                    .setPositiveButton(Lang.t("حسنًا"), null).show();
             return;
         }
         try {

@@ -1,5 +1,7 @@
 package com.sarab.vm.service;
 
+import com.sarab.vm.core.Lang;
+
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
@@ -141,14 +143,14 @@ public final class VmManager {
         List<String> problems = c.validate();
         if (!problems.isEmpty()) throw new IOException(problems.get(0));
         if (!QemuEnvironment.deviceSupported()) {
-            throw new IOException("هذا الهاتف لا يدعم معالجات arm64 المطلوبة لتشغيل المحرك");
+            throw new IOException(Lang.t("هذا الهاتف لا يدعم معالجات arm64 المطلوبة لتشغيل المحرك"));
         }
         if (!env.hasEngine(c.arch)) {
-            throw new IOException("محرك QEMU غير موجود في هذه النسخة من التطبيق ("
-                    + c.arch.qemuBinary + "). هذه النسخة بُنيت بدون تشغيل scripts/fetch_qemu.py، استخدم ملف APK الناتج من GitHub Actions كما في ملف README.");
+            throw new IOException(Lang.t("محرك QEMU غير موجود في هذه النسخة من التطبيق (")
+                    + c.arch.qemuBinary + Lang.t("). هذه النسخة بُنيت بدون تشغيل scripts/fetch_qemu.py، استخدم ملف APK الناتج من GitHub Actions كما في ملف README."));
         }
         if (c.isoPath != null && !c.isoPath.isEmpty() && !new File(c.isoPath).isFile()) {
-            throw new IOException("ملف الصورة غير موجود: " + new File(c.isoPath).getName());
+            throw new IOException(Lang.t("ملف الصورة غير موجود: ") + new File(c.isoPath).getName());
         }
         env.ensureInstalled();
 
@@ -195,7 +197,7 @@ public final class VmManager {
     }
 
     private void createDisk(VmConfig c, VmRepository repo) throws IOException {
-        if (!env.hasQemuImg()) throw new IOException("أداة إنشاء الأقراص (qemu-img) غير موجودة في هذه النسخة");
+        if (!env.hasQemuImg()) throw new IOException(Lang.t("أداة إنشاء الأقراص (qemu-img) غير موجودة في هذه النسخة"));
         File disk = repo.diskFileFor(c);
         ProcessBuilder pb = new ProcessBuilder(env.builder().createDiskCommand(disk.getAbsolutePath(), c.diskSizeGb));
         configureEnv(pb);
@@ -209,14 +211,14 @@ public final class VmManager {
         try {
             if (!p.waitFor(60, TimeUnit.SECONDS)) {
                 p.destroy();
-                throw new IOException("انتهت مهلة إنشاء القرص");
+                throw new IOException(Lang.t("انتهت مهلة إنشاء القرص"));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("أُلغي إنشاء القرص", e);
+            throw new IOException(Lang.t("أُلغي إنشاء القرص"), e);
         }
         if (p.exitValue() != 0 || !disk.isFile()) {
-            throw new IOException("فشل إنشاء القرص:\n" + out.toString().trim());
+            throw new IOException(Lang.t("فشل إنشاء القرص:\n") + out.toString().trim());
         }
         c.diskPath = disk.getAbsolutePath();
         repo.save(c);
@@ -224,15 +226,15 @@ public final class VmManager {
 
     private void prepareSharedFolder(EmulatorSettings settings) throws IOException {
         if (!StorageAccess.has(app)) {
-            throw new IOException("المجلد المشترك يحتاج إذن الوصول إلى ملفات الهاتف. اسمح به ثم شغّل النظام مرة أخرى.");
+            throw new IOException(Lang.t("المجلد المشترك يحتاج إذن الوصول إلى ملفات الهاتف. اسمح به ثم شغّل النظام مرة أخرى."));
         }
         File dir = new File(settings.sharedFolderPath);
         if (!dir.isDirectory() && !dir.mkdirs()) {
-            throw new IOException("تعذر إنشاء المجلد المشترك: " + dir);
+            throw new IOException(Lang.t("تعذر إنشاء المجلد المشترك: ") + dir);
         }
         long size = StoragePaths.folderSize(dir);
         if (size > StoragePaths.SHARED_LIMIT_BYTES) {
-            throw new IOException("حجم المجلد المشترك " + (size >> 20) + " MB، والحد الأقصى 480 MB. انقل بعض الملفات منه أو اختر مجلدًا آخر من الإعدادات.");
+            throw new IOException(Lang.t("حجم المجلد المشترك ") + (size >> 20) + Lang.t(" MB، والحد الأقصى 480 MB. انقل بعض الملفات منه أو اختر مجلدًا آخر من الإعدادات."));
         }
     }
 
@@ -325,8 +327,8 @@ public final class VmManager {
         if (vm == null) return;
         if (!vm.config.canSaveState()) {
             throw new IOException(vm.config.diskPath == null || vm.config.diskPath.isEmpty()
-                    ? "حفظ الحالة يحتاج قرصًا صلبًا وهميًا لهذا النظام. أضف قرصًا من «تعديل»."
-                    : "حفظ الحالة لا يعمل مع المجلد المشترك القابل للكتابة. أوقف خيار الكتابة من «تعديل».");
+                    ? Lang.t("حفظ الحالة يحتاج قرصًا صلبًا وهميًا لهذا النظام. أضف قرصًا من «تعديل».")
+                    : Lang.t("حفظ الحالة لا يعمل مع المجلد المشترك القابل للكتابة. أوقف خيار الكتابة من «تعديل»."));
         }
         int port = QemuCommandBuilder.qmpPort(vm.display);
         QmpClient.hmp("127.0.0.1", port, "stop", 10000);

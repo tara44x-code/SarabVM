@@ -1,5 +1,7 @@
 package com.sarab.vm.data;
 
+import com.sarab.vm.core.Lang;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
@@ -81,7 +83,7 @@ public final class ImageStore {
         File part = new File(dir, name + ".part");
         ContentResolver cr = context.getContentResolver();
         try (InputStream in = cr.openInputStream(uri); OutputStream out = new FileOutputStream(part)) {
-            if (in == null) throw new IOException("تعذر فتح الملف");
+            if (in == null) throw new IOException(Lang.t("تعذر فتح الملف"));
             byte[] buf = new byte[1 << 20];
             long copied = 0;
             int n;
@@ -89,7 +91,7 @@ public final class ImageStore {
                 out.write(buf, 0, n);
                 copied += n;
                 if (progress != null && !progress.onProgress(copied, total)) {
-                    throw new IOException("أُلغي النسخ");
+                    throw new IOException(Lang.t("أُلغي النسخ"));
                 }
             }
         } catch (IOException e) {
@@ -101,7 +103,7 @@ public final class ImageStore {
             //noinspection ResultOfMethodCallIgnored
             target.delete();
         }
-        if (!part.renameTo(target)) throw new IOException("تعذر حفظ الملف");
+        if (!part.renameTo(target)) throw new IOException(Lang.t("تعذر حفظ الملف"));
         return target;
     }
 

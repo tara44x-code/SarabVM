@@ -1,5 +1,7 @@
 package com.sarab.vm.ui;
 
+import com.sarab.vm.core.Lang;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.os.Bundle;
@@ -32,18 +34,19 @@ public final class OsStoreActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Ui.init(this);
         super.onCreate(savedInstanceState);
         LinearLayout root = Ui.column(this);
         root.setBackgroundColor(Ui.BG);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setLayoutDirection(Ui.dir());
         root.setFitsSystemWindows(true);
 
         LinearLayout header = Ui.row(this);
         header.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 8));
-        TextView back = Ui.iconButton(this, "›", "رجوع", Ui.TEXT);
+        TextView back = Ui.iconButton(this, Ui.backGlyph(), Lang.t("رجوع"), Ui.TEXT);
         back.setOnClickListener(v -> finish());
         header.addView(back);
-        TextView title = Ui.text(this, "أنظمة جاهزة", 22, Ui.TEXT, true);
+        TextView title = Ui.text(this, Lang.t("أنظمة جاهزة"), 22, Ui.TEXT, true);
         title.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
         header.addView(title);
         root.addView(header);
@@ -51,7 +54,7 @@ public final class OsStoreActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout list = Ui.column(this);
         list.setPadding(Ui.dp(this, 20), Ui.dp(this, 4), Ui.dp(this, 20), Ui.dp(this, 32));
-        list.addView(Ui.text(this, "تُحمّل من المواقع الرسمية لكل نظام، ويُتحقّق من سلامة الملف، ثم يُنشأ النظام تلقائيًا.",
+        list.addView(Ui.text(this, Lang.t("تُحمّل من المواقع الرسمية لكل نظام، ويُتحقّق من سلامة الملف، ثم يُنشأ النظام تلقائيًا."),
                 13, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 0, 0, 12));
         for (OsCatalog.Entry e : OsCatalog.entries()) list.addView(card(e));
         scroll.addView(list);
@@ -70,10 +73,10 @@ public final class OsStoreActivity extends Activity {
         top.addView(Ui.osBadge(this, VmConfig.OsType.LINUX, 44));
         LinearLayout info = Ui.column(this);
         info.setPaddingRelative(Ui.dp(this, 12), 0, Ui.dp(this, 8), 0);
-        info.addView(Ui.text(this, e.title, 16, Ui.TEXT, true));
+        info.addView(Ui.text(this, Lang.t(e.title), 16, Ui.TEXT, true));
         info.addView(Ui.mono(this, e.arch.label + " · " + e.approxSize + " · " + (e.ramMb >= 1024 ? e.ramMb / 1024 + " GB" : e.ramMb + " MB"), 12, Ui.MUTED));
         top.addView(info, Ui.weight(1));
-        TextView get = Ui.text(this, "تحميل", 14, Ui.ON_ACCENT, true);
+        TextView get = Ui.text(this, Lang.t("تحميل"), 14, Ui.ON_ACCENT, true);
         get.setGravity(Gravity.CENTER);
         get.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
         get.setBackground(Ui.clickable(this, Ui.ACCENT, 12, 0, 0));
@@ -81,7 +84,7 @@ public final class OsStoreActivity extends Activity {
         get.setOnClickListener(v -> confirm(e));
         top.addView(get, Ui.lp(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, 40)));
         card.addView(top);
-        card.addView(Ui.text(this, e.description, 13, Ui.TEXT_2, false),
+        card.addView(Ui.text(this, Lang.t(e.description), 13, Ui.TEXT_2, false),
                 Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 10, 0, 0));
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -92,18 +95,18 @@ public final class OsStoreActivity extends Activity {
 
     private void confirm(OsCatalog.Entry e) {
         new AlertDialog.Builder(this)
-                .setTitle("تحميل " + e.title + "؟")
-                .setMessage("الحجم تقريبًا " + e.approxSize + ". يُفضّل استخدام Wi-Fi. أبقِ هذه الشاشة مفتوحة حتى ينتهي التحميل.")
-                .setPositiveButton("تحميل", (d, w) -> download(e))
-                .setNegativeButton("إلغاء", null)
+                .setTitle(Lang.t("تحميل ") + Lang.t(e.title) + Lang.t("؟"))
+                .setMessage(Lang.t("الحجم تقريبًا ") + e.approxSize + Lang.t(". يُفضّل استخدام Wi-Fi. أبقِ هذه الشاشة مفتوحة حتى ينتهي التحميل."))
+                .setPositiveButton(Lang.t("تحميل"), (d, w) -> download(e))
+                .setNegativeButton(Lang.t("إلغاء"), null)
                 .show();
     }
 
     private void download(OsCatalog.Entry e) {
         LinearLayout box = Ui.column(this);
-        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setLayoutDirection(Ui.dir());
         box.setPadding(Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 8));
-        TextView label = Ui.text(this, "جارٍ البحث عن أحدث إصدار…", 14, Ui.TEXT, false);
+        TextView label = Ui.text(this, Lang.t("جارٍ البحث عن أحدث إصدار…"), 14, Ui.TEXT, false);
         box.addView(label);
         ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         bar.setMax(1000);
@@ -114,10 +117,10 @@ public final class OsStoreActivity extends Activity {
 
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(e.title)
+                .setTitle(Lang.t(e.title))
                 .setView(box)
                 .setCancelable(false)
-                .setNegativeButton("إلغاء", (d, w) -> cancelled.set(true))
+                .setNegativeButton(Lang.t("إلغاء"), (d, w) -> cancelled.set(true))
                 .create();
         dialog.show();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -128,7 +131,7 @@ public final class OsStoreActivity extends Activity {
                 OsCatalog.Resolved r = OsCatalog.resolve(e, Downloader::fetchText);
                 File target = new File(new ImageStore(this).directory(), r.fileName);
                 main.post(() -> {
-                    label.setText("جارٍ تحميل " + r.fileName);
+                    label.setText(Lang.t("جارٍ تحميل ") + r.fileName);
                     bar.setIndeterminate(false);
                 });
                 if (!target.isFile()) {
@@ -152,10 +155,10 @@ public final class OsStoreActivity extends Activity {
                     dialog.dismiss();
                     if (isFinishing() || isDestroyed()) return;
                     new AlertDialog.Builder(this)
-                            .setTitle("جاهز ✓")
-                            .setMessage("أُنشئ النظام «" + c.name + "». تشغّله الآن؟")
-                            .setPositiveButton("تشغيل", (d, w) -> VmStarter.start(this, c, this::finish))
-                            .setNegativeButton("لاحقًا", (d, w) -> finish())
+                            .setTitle(Lang.t("جاهز ✓"))
+                            .setMessage(Lang.t("أُنشئ النظام «") + c.name + Lang.t("». تشغّله الآن؟"))
+                            .setPositiveButton(Lang.t("تشغيل"), (d, w) -> VmStarter.start(this, c, this::finish))
+                            .setNegativeButton(Lang.t("لاحقًا"), (d, w) -> finish())
                             .show();
                 });
             } catch (IOException | RuntimeException ex) {
@@ -164,10 +167,10 @@ public final class OsStoreActivity extends Activity {
                     dialog.dismiss();
                     if (cancelled.get() || isFinishing() || isDestroyed()) return;
                     new AlertDialog.Builder(this)
-                            .setTitle("تعذر التحميل")
+                            .setTitle(Lang.t("تعذر التحميل"))
                             .setMessage((ex.getMessage() == null ? ex.toString() : ex.getMessage())
-                                    + "\n\nتأكد من اتصال الإنترنت وحاول مرة أخرى.")
-                            .setPositiveButton("حسنًا", null)
+                                    + Lang.t("\n\nتأكد من اتصال الإنترنت وحاول مرة أخرى."))
+                            .setPositiveButton(Lang.t("حسنًا"), null)
                             .show();
                 });
             }
