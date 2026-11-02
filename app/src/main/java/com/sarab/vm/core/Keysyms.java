@@ -24,6 +24,12 @@ public final class Keysyms {
     public static final int ALT_L = 0xFFE9;
     public static final int SUPER_L = 0xFFEB;
     public static final int SPACE = 0x0020;
+    public static final int CAPS_LOCK = 0xFFE5;
+    public static final int NUM_LOCK = 0xFF7F;
+    public static final int SCROLL_LOCK = 0xFF14;
+    public static final int PRINT = 0xFF61;
+    public static final int PAUSE = 0xFF13;
+    public static final int MENU = 0xFF67;
 
     /** F1..F12 → keysym. */
     public static int function(int n) {

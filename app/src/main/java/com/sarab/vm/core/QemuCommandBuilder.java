@@ -87,6 +87,10 @@ public final class QemuCommandBuilder {
             addX86(a, c, s);
         }
 
+        if (c.snapshotSaved && c.canSaveState()) {
+            a.add("-loadvm");
+            a.add(VmConfig.SNAPSHOT_NAME);
+        }
         a.add("-vnc");
         a.add("127.0.0.1:" + display);
         a.add("-qmp");
@@ -134,7 +138,7 @@ public final class QemuCommandBuilder {
 
         if (s.network) {
             a.add("-netdev");
-            a.add("user,id=net0");
+            a.add("user,id=net0" + PortForwards.parse(c.portForwards).toQemuSuffix());
             a.add("-device");
             a.add("e1000,netdev=net0");
         } else {
@@ -192,7 +196,7 @@ public final class QemuCommandBuilder {
 
         if (s.network) {
             a.add("-netdev");
-            a.add("user,id=net0");
+            a.add("user,id=net0" + PortForwards.parse(c.portForwards).toQemuSuffix());
             a.add("-device");
             a.add("virtio-net-pci,netdev=net0");
         } else {

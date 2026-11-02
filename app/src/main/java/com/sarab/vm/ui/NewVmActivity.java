@@ -52,6 +52,13 @@ public final class NewVmActivity extends Activity {
     private boolean editing;
     private boolean nameEdited;
     private int ramMax;
+    private String originalMachine;
+    private EditText portsField;
+
+    /** RAM / CPU / architecture: a saved state only fits the exact same machine. */
+    private static String machineKey(VmConfig c) {
+        return c.ramMb + "/" + c.cpus + "/" + c.arch + "/" + c.isoPath + "/" + c.shareFolder;
+    }
 
     private LinearLayout typeGrid;
     private EditText nameField;
@@ -73,6 +80,7 @@ public final class NewVmActivity extends Activity {
             config = existing;
             editing = true;
             nameEdited = true;
+            originalMachine = machineKey(existing);
         } else {
             config = new VmConfig();
             EmulatorSettings s = new SettingsStore(this).load();
@@ -249,6 +257,24 @@ public final class NewVmActivity extends Activity {
         form.addView(diskRow);
         diskNote = Ui.text(this, "", 12, Ui.MUTED, false);
         form.addView(diskNote, Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
+
+        form.addView(sectionLabel("تحويل المنافذ (اختياري)"));
+        portsField = new EditText(this);
+        portsField.setSingleLine(true);
+        portsField.setInputType(InputType.TYPE_CLASS_TEXT);
+        portsField.setTextDirection(View.TEXT_DIRECTION_LTR);
+        portsField.setTextColor(Ui.TEXT);
+        portsField.setHintTextColor(Ui.MUTED);
+        portsField.setHint("8080:80, 2222:22");
+        portsField.setTextSize(15);
+        portsField.setTypeface(android.graphics.Typeface.MONOSPACE);
+        portsField.setBackground(Ui.rounded(this, Ui.SURFACE, 14, Ui.BORDER, 1));
+        portsField.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
+        portsField.setText(config.portForwards);
+        portsField.setContentDescription("تحويل المنافذ");
+        form.addView(portsField, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 50)));
+        form.addView(Ui.text(this, "منفذ الهاتف:منفذ النظام. مثلًا 8080:80 يجعل موقعًا يعمل داخل النظام على المنفذ 80 يفتح من متصفح هاتفك على http://127.0.0.1:8080. و 2222:22 للدخول عبر SSH.",
+                12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
 
         form.addView(sectionLabel("المجلد المشترك مع الهاتف"));
         LinearLayout share = Ui.column(this);
@@ -499,6 +525,11 @@ public final class NewVmActivity extends Activity {
 
     private void save(boolean andStart) {
         config.name = nameField.getText().toString().trim();
+        config.portForwards = portsField.getText().toString().trim();
+        if (editing && config.snapshotSaved && !machineKey(config).equals(originalMachine)) {
+            config.snapshotSaved = false; // the saved state belongs to the old machine setup
+            Toast.makeText(this, "تغيّرت مواصفات النظام، لذلك سيبدأ من جديد بدل الحالة المحفوظة", Toast.LENGTH_LONG).show();
+        }
         List<String> errors = config.validate();
         if (!errors.isEmpty()) {
             new AlertDialog.Builder(this).setTitle("أكمل البيانات")

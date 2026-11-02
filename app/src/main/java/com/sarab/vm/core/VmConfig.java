@@ -46,6 +46,16 @@ public final class VmConfig {
     public boolean shareFolder;
     /** Let the machine write into the shared folder (QEMU calls this experimental). */
     public boolean shareWritable;
+    /** A saved state ("savevm sarab") waits inside the qcow2 disk; the next start resumes it once. */
+    public boolean snapshotSaved;
+    /** Port forwarding "phonePort:guestPort, …", e.g. "8080:80, 2222:22". */
+    public String portForwards = "";
+
+    public static final String SNAPSHOT_NAME = "sarab";
+
+    public boolean canSaveState() {
+        return diskPath != null && !diskPath.isEmpty() && !(shareFolder && shareWritable);
+    }
 
     public VmConfig() {
         this.id = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -62,6 +72,7 @@ public final class VmConfig {
         boolean hasDisk = diskSizeGb > 0 || (diskPath != null && !diskPath.isEmpty());
         if (!hasIso && !hasDisk) errors.add("اختر ملف صورة أو قرصًا صلبًا");
         if (diskSizeGb < 0) errors.add("حجم القرص غير صالح");
+        errors.addAll(PortForwards.parse(portForwards).errors);
         return errors;
     }
 
@@ -79,6 +90,8 @@ public final class VmConfig {
         p.setProperty("createdAt", Long.toString(createdAt));
         p.setProperty("shareFolder", Boolean.toString(shareFolder));
         p.setProperty("shareWritable", Boolean.toString(shareWritable));
+        p.setProperty("snapshotSaved", Boolean.toString(snapshotSaved));
+        p.setProperty("portForwards", portForwards == null ? "" : portForwards);
         return p;
     }
 
@@ -96,6 +109,8 @@ public final class VmConfig {
         c.createdAt = parseLong(p.getProperty("createdAt"), c.createdAt);
         c.shareFolder = Boolean.parseBoolean(p.getProperty("shareFolder", "false"));
         c.shareWritable = Boolean.parseBoolean(p.getProperty("shareWritable", "false"));
+        c.snapshotSaved = Boolean.parseBoolean(p.getProperty("snapshotSaved", "false"));
+        c.portForwards = p.getProperty("portForwards", "");
         return c;
     }
 

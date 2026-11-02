@@ -3,7 +3,9 @@ package com.sarab.vm.ui;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.widget.Toast;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +17,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.sarab.vm.R;
+import com.sarab.vm.core.PortForwards;
+import com.sarab.vm.core.VmArchive;
 import com.sarab.vm.core.VmConfig;
 import com.sarab.vm.data.ImageStore;
 import com.sarab.vm.data.VmRepository;
@@ -23,10 +27,14 @@ import com.sarab.vm.service.VmManager;
 import com.sarab.vm.util.Ui;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 /** Home screen: the list of machines ("أنظمتي"). */
 public final class MainActivity extends Activity implements VmManager.Listener {
+
+    private static final int REQUEST_EXPORT = 31;
+    private static final int REQUEST_IMPORT = 32;
 
     private VmRepository repo;
     private VmManager manager;
@@ -136,9 +144,11 @@ public final class MainActivity extends Activity implements VmManager.Listener {
     private void chooseNewSource() {
         new AlertDialog.Builder(this)
                 .setTitle("نظام جديد")
-                .setItems(new String[]{"من ملف ISO أو IMG على هاتفي", "تحميل نظام جاهز (Alpine، Debian، Tiny Core)"}, (d, which) -> {
+                .setItems(new String[]{"من ملف ISO أو IMG على هاتفي", "تحميل نظام جاهز (Alpine، Debian، Tiny Core)",
+                        "استيراد نظام مصدَّر (.sarab)"}, (d, which) -> {
                     if (which == 0) startActivity(new Intent(this, NewVmActivity.class));
-                    else startActivity(new Intent(this, OsStoreActivity.class));
+                    else if (which == 1) startActivity(new Intent(this, OsStoreActivity.class));
+                    else startImport();
                 })
                 .show();
     }
@@ -217,6 +227,7 @@ public final class MainActivity extends Activity implements VmManager.Listener {
         info.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
         info.addView(Ui.text(this, c.name, 17, Ui.TEXT, true));
         info.addView(Ui.mono(this, c.summary(), 12, Ui.MUTED));
+        if (c.snapshotSaved && !running) info.addView(Ui.text(this, "◉ حالة محفوظة — يكمل من حيث توقف", 11, Ui.SAND, true));
         top.addView(info, Ui.weight(1));
 
         if (running) {
@@ -273,24 +284,195 @@ public final class MainActivity extends Activity implements VmManager.Listener {
 
     private void showOptions(VmConfig c) {
         boolean running = manager.isRunning(c.id);
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        java.util.List<Runnable> actions = new java.util.ArrayList<>();
+        PortForwards ports = PortForwards.parse(c.portForwards);
+        if (running && !ports.rules.isEmpty()) {
+            for (PortForwards.Rule r : ports.rules) {
+                labels.add("فتح المنفذ " + r.hostPort + " في المتصفح");
+                actions.add(() -> openInBrowser(r.hostPort));
+            }
+        }
+        if (!running && c.snapshotSaved) {
+            labels.add("تشغيل من جديد (تجاهل الحالة المحفوظة)");
+            actions.add(() -> {
+                c.snapshotSaved = false;
+                saveQuietly(c);
+                startVm(c);
+            });
+        }
+        labels.add("تعديل");
+        actions.add(() -> whenStopped(c, () -> startActivity(VmManager.withVm(new Intent(this, NewVmActivity.class), c.id))));
+        labels.add("نسخة مكررة");
+        actions.add(() -> whenStopped(c, () -> duplicate(c)));
+        labels.add("تصدير إلى ملف (.sarab)");
+        actions.add(() -> whenStopped(c, () -> askExport(c)));
+        labels.add("السجل (رسائل QEMU)");
+        actions.add(() -> LogActivity.open(this, c.id));
+        labels.add("حذف");
+        actions.add(() -> whenStopped(c, () -> confirmDelete(c)));
         new AlertDialog.Builder(this)
                 .setTitle(c.name)
-                .setItems(new String[]{"تعديل", "حذف", "السجل (رسائل QEMU)"}, (d, which) -> {
-                    if (which == 2) {
-                        LogActivity.open(this, c.id);
-                        return;
-                    }
-                    if (running) {
-                        new AlertDialog.Builder(this).setMessage("أوقف النظام أولًا").setPositiveButton("حسنًا", null).show();
-                        return;
-                    }
-                    if (which == 0) {
-                        startActivity(VmManager.withVm(new Intent(this, NewVmActivity.class), c.id));
-                    } else {
-                        confirmDelete(c);
-                    }
-                })
+                .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
                 .show();
+    }
+
+    private void whenStopped(VmConfig c, Runnable r) {
+        if (manager.isRunning(c.id)) {
+            new AlertDialog.Builder(this).setMessage("أوقف النظام أولًا").setPositiveButton("حسنًا", null).show();
+        } else {
+            r.run();
+        }
+    }
+
+    private void saveQuietly(VmConfig c) {
+        try {
+            repo.save(c);
+        } catch (IOException e) {
+            Toast.makeText(this, String.valueOf(e.getMessage()), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void openInBrowser(int port) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:" + port)));
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "لا يوجد متصفح", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ------------------------------------------------------------ duplicate / export / import
+
+    private void duplicate(VmConfig c) {
+        runWithProgress("جارٍ نسخ " + c.name + "…", progress -> {
+            VmConfig copy = VmArchive.duplicate(c, repo.diskFileFor(c).getParentFile(), progress);
+            repo.save(copy);
+            return "أُنشئت «" + copy.name + "»";
+        });
+    }
+
+    private void askExport(VmConfig c) {
+        boolean hasImage = c.isoPath != null && !c.isoPath.isEmpty() && new File(c.isoPath).isFile();
+        if (!hasImage) {
+            startExport(c, false);
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("تصدير " + c.name)
+                .setMessage("تضمين ملف الصورة (" + new File(c.isoPath).getName() + "، " + Ui.formatSize(new File(c.isoPath).length())
+                        + ")؟ مفيد إذا ستنقل النظام لهاتف آخر.")
+                .setPositiveButton("مع ملف الصورة", (d, w) -> startExport(c, true))
+                .setNegativeButton("بدونه", (d, w) -> startExport(c, false))
+                .show();
+    }
+
+    private VmConfig pendingExport;
+    private boolean pendingExportImage;
+
+    private void startExport(VmConfig c, boolean withImage) {
+        pendingExport = c;
+        pendingExportImage = withImage;
+        Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("application/octet-stream");
+        i.putExtra(Intent.EXTRA_TITLE, c.name.replaceAll("[\\\\/:*?\"<>|]", "_") + ".sarab");
+        try {
+            startActivityForResult(i, REQUEST_EXPORT);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "لا يوجد تطبيق لحفظ الملفات", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void startImport() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        try {
+            startActivityForResult(i, REQUEST_IMPORT);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "لا يوجد تطبيق لاختيار الملفات", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        if (requestCode == REQUEST_EXPORT && pendingExport != null) {
+            VmConfig c = pendingExport;
+            boolean withImage = pendingExportImage;
+            runWithProgress("جارٍ تصدير " + c.name + "…", progress -> {
+                try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+                    if (out == null) throw new IOException("تعذر فتح الملف للكتابة");
+                    VmArchive.export(c, withImage, out, progress);
+                }
+                return "صُدّر النظام ✓";
+            });
+        } else if (requestCode == REQUEST_IMPORT) {
+            runWithProgress("جارٍ استيراد النظام…", progress -> {
+                VmConfig c;
+                try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
+                    if (in == null) throw new IOException("تعذر فتح الملف");
+                    c = VmArchive.importFrom(in, repo.diskFileFor(new VmConfig()).getParentFile(),
+                            new ImageStore(this).directory(), progress);
+                }
+                repo.save(c);
+                return "استُورد «" + c.name + "»" + (c.isoPath.isEmpty() ? "\nملاحظة: ملف الصورة غير موجود، اختره من «تعديل» إذا احتجته." : "");
+            });
+        }
+    }
+
+    private interface Job {
+        String run(VmArchive.Progress progress) throws IOException;
+    }
+
+    /** Runs a long file job with a progress dialog, then refreshes the list. */
+    private void runWithProgress(String title, Job job) {
+        LinearLayout box = Ui.column(this);
+        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setPadding(Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 8));
+        android.widget.ProgressBar bar = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setIndeterminate(true);
+        bar.setMax(1000);
+        box.addView(bar);
+        TextView amount = Ui.mono(this, "", 12, Ui.MUTED);
+        box.addView(amount);
+        java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(title).setView(box).setCancelable(false)
+                .setNegativeButton("إلغاء", (d, w) -> cancelled.set(true)).create();
+        dialog.show();
+        android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+        long[] last = {0};
+        new Thread(() -> {
+            String result;
+            try {
+                result = job.run((done, total) -> {
+                    long now = System.currentTimeMillis();
+                    if (now - last[0] > 250) {
+                        last[0] = now;
+                        main.post(() -> {
+                            if (total > 0) {
+                                bar.setIndeterminate(false);
+                                bar.setProgress((int) (done * 1000 / total));
+                            }
+                            amount.setText(Ui.formatSize(done) + (total > 0 ? " / " + Ui.formatSize(total) : ""));
+                        });
+                    }
+                    return !cancelled.get();
+                });
+            } catch (IOException | RuntimeException e) {
+                result = "تعذرت العملية: " + (e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+            String msg = result;
+            main.post(() -> {
+                dialog.dismiss();
+                refresh();
+                if (!isFinishing() && !isDestroyed() && !cancelled.get()) {
+                    new AlertDialog.Builder(this).setMessage(msg).setPositiveButton("حسنًا", null).show();
+                }
+            });
+        }, "file-job").start();
     }
 
     private void confirmDelete(VmConfig c) {

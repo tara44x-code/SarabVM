@@ -17,6 +17,55 @@ public final class QmpClient {
 
     /** @return the raw JSON reply line to the command. */
     public static String execute(String host, int port, String command, int timeoutMs) throws IOException {
+        return send(host, port, "{\"execute\":\"" + command + "\"}", timeoutMs);
+    }
+
+    /**
+     * Runs a monitor (HMP) command such as "savevm sarab" and returns its text output.
+     * HMP reports failures as text, so output that starts with "Error" becomes an IOException.
+     */
+    public static String hmp(String host, int port, String commandLine, int timeoutMs) throws IOException {
+        String json = "{\"execute\":\"human-monitor-command\",\"arguments\":{\"command-line\":\""
+                + jsonEscape(commandLine) + "\"}}";
+        String reply = send(host, port, json, timeoutMs);
+        String text = returnString(reply);
+        if (text.trim().startsWith("Error") || text.contains("\nError")) throw new IOException(text.trim());
+        return text;
+    }
+
+    /** Value of {"return": "…"} (empty for {"return": {}}). */
+    static String returnString(String reply) {
+        int i = reply.indexOf("\"return\"");
+        if (i < 0) return "";
+        int colon = reply.indexOf(':', i);
+        int q = reply.indexOf('"', colon + 1);
+        int brace = reply.indexOf('{', colon + 1);
+        if (q < 0 || (brace >= 0 && brace < q)) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int k = q + 1; k < reply.length(); k++) {
+            char ch = reply.charAt(k);
+            if (ch == '\\' && k + 1 < reply.length()) {
+                char n = reply.charAt(++k);
+                switch (n) {
+                    case 'n': sb.append('\n'); break;
+                    case 'r': break;
+                    case 't': sb.append('\t'); break;
+                    default: sb.append(n);
+                }
+            } else if (ch == '"') {
+                break;
+            } else {
+                sb.append(ch);
+            }
+        }
+        return sb.toString();
+    }
+
+    static String jsonEscape(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String send(String host, int port, String commandJson, int timeoutMs) throws IOException {
         try (Socket s = new Socket()) {
             s.connect(new InetSocketAddress(host, port), timeoutMs);
             s.setSoTimeout(timeoutMs);
@@ -30,7 +79,7 @@ public final class QmpClient {
             o.write("{\"execute\":\"qmp_capabilities\"}\r\n".getBytes(StandardCharsets.UTF_8));
             o.flush();
             readReply(r);
-            o.write(("{\"execute\":\"" + command + "\"}\r\n").getBytes(StandardCharsets.UTF_8));
+            o.write((commandJson + "\r\n").getBytes(StandardCharsets.UTF_8));
             o.flush();
             return readReply(r);
         }

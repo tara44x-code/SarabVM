@@ -10,6 +10,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.HapticFeedbackConstants;
+import android.view.InputDevice;
+import android.view.PointerIcon;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -96,6 +98,50 @@ public final class VncView extends View implements RfbClient.Listener {
         setFocusableInTouchMode(true);
         setBackgroundColor(0xFF000000);
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        // a real mouse: hide Android's arrow, the guest draws its own cursor
+        setPointerIcon(PointerIcon.getSystemIcon(context, PointerIcon.TYPE_NULL));
+    }
+
+    // ------------------------------------------------------------ real mouse (USB / Bluetooth)
+
+    private static boolean fromMouse(MotionEvent e) {
+        return e.isFromSource(InputDevice.SOURCE_MOUSE);
+    }
+
+    private static int mouseButtons(MotionEvent e) {
+        int s = e.getButtonState();
+        int mask = 0;
+        if ((s & MotionEvent.BUTTON_PRIMARY) != 0) mask |= RfbClient.BUTTON_LEFT;
+        if ((s & MotionEvent.BUTTON_SECONDARY) != 0) mask |= RfbClient.BUTTON_RIGHT;
+        if ((s & MotionEvent.BUTTON_TERTIARY) != 0) mask |= RfbClient.BUTTON_MIDDLE;
+        return mask;
+    }
+
+    private boolean handleMouse(MotionEvent e) {
+        RfbClient c = client;
+        if (c == null || bitmap == null) return true;
+        int x = toFbX(e.getX());
+        int y = toFbY(e.getY());
+        if (e.getActionMasked() == MotionEvent.ACTION_SCROLL) {
+            float v = e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+            if (v != 0) {
+                int wheel = v > 0 ? RfbClient.WHEEL_UP : RfbClient.WHEEL_DOWN;
+                int mask = mouseButtons(e);
+                for (int i = 0; i < Math.max(1, Math.round(Math.abs(v))); i++) {
+                    c.sendPointer(mask | wheel, x, y);
+                    c.sendPointer(mask, x, y);
+                }
+            }
+            return true;
+        }
+        c.sendPointer(mouseButtons(e), x, y);
+        return true;
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent e) {
+        if (fromMouse(e)) return handleMouse(e);
+        return super.onGenericMotionEvent(e);
     }
 
     public void setCallback(Callback callback) {
@@ -280,6 +326,7 @@ public final class VncView extends View implements RfbClient.Listener {
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
+        if (fromMouse(e)) return handleMouse(e);
         RfbClient c = client;
         if (c == null || bitmap == null) return true;
         switch (e.getActionMasked()) {
@@ -582,7 +629,8 @@ public final class VncView extends View implements RfbClient.Listener {
         if (c == null || keyCode == KeyEvent.KEYCODE_BACK) return false;
         int keysym = mapKeyCode(keyCode);
         if (keysym == 0) {
-            int uc = event.getUnicodeChar(event.getMetaState());
+            // Ctrl/Alt are sent as their own keys, so only Shift / Caps Lock shape the letter
+            int uc = event.getUnicodeChar(event.getMetaState() & (KeyEvent.META_SHIFT_MASK | KeyEvent.META_CAPS_LOCK_ON));
             if (uc <= 0) return false;
             keysym = Keysyms.forChar(uc);
         }
@@ -620,12 +668,24 @@ public final class VncView extends View implements RfbClient.Listener {
             case KeyEvent.KEYCODE_META_LEFT:
             case KeyEvent.KEYCODE_META_RIGHT: return Keysyms.SUPER_L;
             case KeyEvent.KEYCODE_SPACE: return Keysyms.SPACE;
+            case KeyEvent.KEYCODE_CAPS_LOCK: return Keysyms.CAPS_LOCK;
+            case KeyEvent.KEYCODE_NUM_LOCK: return Keysyms.NUM_LOCK;
+            case KeyEvent.KEYCODE_SCROLL_LOCK: return Keysyms.SCROLL_LOCK;
+            case KeyEvent.KEYCODE_SYSRQ: return Keysyms.PRINT;
+            case KeyEvent.KEYCODE_BREAK: return Keysyms.PAUSE;
+            case KeyEvent.KEYCODE_MENU: return Keysyms.MENU;
             default:
                 if (keyCode >= KeyEvent.KEYCODE_F1 && keyCode <= KeyEvent.KEYCODE_F12) {
                     return Keysyms.function(keyCode - KeyEvent.KEYCODE_F1 + 1);
                 }
                 return 0;
         }
+    }
+
+    /** Hardware keyboard events routed here by the activity, whichever view has focus. */
+    public boolean onHardwareKey(KeyEvent e) {
+        if (e.getAction() == KeyEvent.ACTION_MULTIPLE) return false;
+        return handleKey(e.getKeyCode(), e, e.getAction() == KeyEvent.ACTION_DOWN);
     }
 
     /** Copy of the current screen for the screenshot button. */

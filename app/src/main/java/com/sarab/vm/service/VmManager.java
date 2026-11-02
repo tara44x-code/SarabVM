@@ -165,6 +165,11 @@ public final class VmManager {
         int display = allocateDisplay();
         QemuCommandBuilder builder = env.builder();
         List<String> cmd = builder.build(c, settings, display);
+        if (c.snapshotSaved) {
+            // a saved state is resumed once; afterwards the machine moves on from it
+            c.snapshotSaved = false;
+            repo.save(c);
+        }
 
         File logDir = new File(app.getFilesDir(), "logs");
         //noinspection ResultOfMethodCallIgnored
@@ -309,6 +314,38 @@ public final class VmManager {
         RunningVm vm = running.get(id);
         if (vm == null) return;
         QmpClient.execute("127.0.0.1", QemuCommandBuilder.qmpPort(vm.display), "system_powerdown", 3000);
+    }
+
+    /**
+     * Saves the whole running state into the machine's disk, then stops it. The next start
+     * resumes exactly where it was. Can take a few minutes. Blocking.
+     */
+    public void saveStateAndStop(String id) throws IOException {
+        RunningVm vm = running.get(id);
+        if (vm == null) return;
+        if (!vm.config.canSaveState()) {
+            throw new IOException(vm.config.diskPath == null || vm.config.diskPath.isEmpty()
+                    ? "حفظ الحالة يحتاج قرصًا صلبًا وهميًا لهذا النظام. أضف قرصًا من «تعديل»."
+                    : "حفظ الحالة لا يعمل مع المجلد المشترك القابل للكتابة. أوقف خيار الكتابة من «تعديل».");
+        }
+        int port = QemuCommandBuilder.qmpPort(vm.display);
+        QmpClient.hmp("127.0.0.1", port, "stop", 10000);
+        try {
+            QmpClient.hmp("127.0.0.1", port, "savevm " + VmConfig.SNAPSHOT_NAME, 15 * 60 * 1000);
+        } catch (IOException e) {
+            try {
+                QmpClient.hmp("127.0.0.1", port, "cont", 10000);
+            } catch (IOException ignored) {
+                // machine stays paused; the user can still stop it
+            }
+            throw e;
+        }
+        VmRepository repo = new VmRepository(app);
+        VmConfig saved = repo.get(id);
+        if (saved == null) saved = vm.config;
+        saved.snapshotSaved = true;
+        repo.save(saved);
+        forceStop(id);
     }
 
     /** Stops the machine immediately (like pulling the plug). Blocking. */

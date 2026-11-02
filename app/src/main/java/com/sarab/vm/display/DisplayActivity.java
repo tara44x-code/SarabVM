@@ -12,6 +12,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.Gravity;
+import android.view.InputDevice;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
@@ -274,6 +276,28 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
         if (on) Toast.makeText(this, "اضغط زر الرجوع للخروج من ملء الشاشة", Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * Real keyboards and mice: every key goes to the machine, even when a toolbar button has
+     * focus. A mouse's right button arrives as BACK on Android, so BACK from a mouse is ignored
+     * (the right click itself is sent by the screen view).
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int code = e.getKeyCode();
+        if (code == KeyEvent.KEYCODE_BACK) {
+            if (e.getSource() == InputDevice.SOURCE_MOUSE || (e.getSource() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE) {
+                return true;
+            }
+            return super.dispatchKeyEvent(e);
+        }
+        if (code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN
+                || code == KeyEvent.KEYCODE_VOLUME_MUTE || code == KeyEvent.KEYCODE_POWER) {
+            return super.dispatchKeyEvent(e);
+        }
+        if (vnc != null && vnc.onHardwareKey(e)) return true;
+        return super.dispatchKeyEvent(e);
+    }
+
     @Override
     public void onBackPressed() {
         if (fullscreen) {
@@ -284,20 +308,68 @@ public final class DisplayActivity extends Activity implements VncView.Callback,
     }
 
     private void askPower() {
+        String[] items = {
+                "حفظ الحالة وإيقاف — يرجع من نفس النقطة",
+                "إيقاف آمن — يطلب من النظام أن يُغلق نفسه",
+                "إيقاف فوري — مثل فصل الكهرباء",
+        };
         new AlertDialog.Builder(this)
                 .setTitle("إيقاف " + vm.config.name)
-                .setMessage("الإيقاف الآمن يطلب من النظام أن يُغلق نفسه. الإيقاف الفوري مثل فصل الكهرباء وقد يُفقد البيانات غير المحفوظة.")
-                .setPositiveButton("إيقاف آمن", (d, w) -> runInBackground(() -> {
-                    try {
-                        manager.requestShutdown(vm.config.id);
-                        toast("أُرسل طلب الإيقاف إلى النظام");
-                    } catch (IOException e) {
-                        toast("تعذر إرسال الطلب: " + e.getMessage());
-                    }
-                }))
-                .setNegativeButton("إيقاف فوري", (d, w) -> runInBackground(() -> manager.forceStop(vm.config.id)))
-                .setNeutralButton("إلغاء", null)
+                .setItems(items, (d, which) -> {
+                    if (which == 0) saveState();
+                    else if (which == 1) runInBackground(() -> {
+                        try {
+                            manager.requestShutdown(vm.config.id);
+                            toast("أُرسل طلب الإيقاف إلى النظام");
+                        } catch (IOException e) {
+                            toast("تعذر إرسال الطلب: " + e.getMessage());
+                        }
+                    });
+                    else runInBackground(() -> manager.forceStop(vm.config.id));
+                })
+                .setNegativeButton("إلغاء", null)
                 .show();
+    }
+
+    private void saveState() {
+        if (!vm.config.canSaveState()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("لا يمكن حفظ الحالة")
+                    .setMessage(vm.config.diskPath == null || vm.config.diskPath.isEmpty()
+                            ? "حفظ الحالة يحتاج قرصًا صلبًا وهميًا (القرص يحفظ الحالة بداخله). أوقف النظام وأضف قرصًا من «تعديل»."
+                            : "حفظ الحالة لا يعمل عندما يكون المجلد المشترك قابلًا للكتابة. أوقف خيار الكتابة من «تعديل».")
+                    .setPositiveButton("حسنًا", null)
+                    .show();
+            return;
+        }
+        android.widget.LinearLayout box = Ui.row(this);
+        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setPadding(Ui.dp(this, 24), Ui.dp(this, 24), Ui.dp(this, 24), Ui.dp(this, 24));
+        box.addView(new android.widget.ProgressBar(this), Ui.lp(Ui.dp(this, 36), Ui.dp(this, 36)));
+        TextView t = Ui.text(this, "جارٍ حفظ الحالة… قد يأخذ دقيقة أو أكثر حسب حجم الذاكرة.", 15, Ui.TEXT, false);
+        t.setPaddingRelative(Ui.dp(this, 16), 0, 0, 0);
+        box.addView(t, Ui.weight(1));
+        AlertDialog progress = new AlertDialog.Builder(this).setView(box).setCancelable(false).create();
+        progress.show();
+        runInBackground(() -> {
+            try {
+                manager.saveStateAndStop(vm.config.id);
+                main.post(() -> {
+                    progress.dismiss();
+                    toast("حُفظت الحالة ✓ التشغيل القادم يكمل من نفس النقطة");
+                });
+            } catch (IOException e) {
+                main.post(() -> {
+                    progress.dismiss();
+                    if (isFinishing() || isDestroyed()) return;
+                    new AlertDialog.Builder(this)
+                            .setTitle("تعذر حفظ الحالة")
+                            .setMessage(String.valueOf(e.getMessage()))
+                            .setPositiveButton("حسنًا", null)
+                            .show();
+                });
+            }
+        });
     }
 
     private void saveScreenshot() {
