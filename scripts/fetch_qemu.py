@@ -41,6 +41,11 @@ SYSTEM_LIBS = {
     "libnativewindow.so", "libsync.so", "libcamera2ndk.so", "libbinder_ndk.so",
 }
 
+# QEMU's network library (libslirp) reads the host's DNS servers from this Termux path, which
+# does not exist inside our app. It is rewritten to a file the app writes before each start.
+TERMUX_RESOLV = b"/data/data/com.termux/files/usr/etc/resolv.conf"
+APP_RESOLV = b"/data/data/com.sarab.vm/files/resolv.conf"
+
 # Firmware files worth shipping (x86 PC + aarch64 virt). Everything else is skipped.
 DATA_KEEP = [
     r"^bios.*\.bin$", r"^vgabios.*\.bin$", r"^kvmvapic\.bin$", r"^linuxboot.*\.bin$",
@@ -374,6 +379,16 @@ def build_bundle(files, links, programs, machine=183):
     return result, mapping
 
 
+def patch_paths(data, old=TERMUX_RESOLV, new=APP_RESOLV):
+    """Replaces every NUL-terminated copy of `old` with `new`, padded with NULs. Returns (bytes, count)."""
+    if len(new) > len(old):
+        raise ValueError("replacement path is longer than the original")
+    target = old + b"\0"
+    replacement = new + b"\0" * (len(old) - len(new) + 1)
+    count = data.count(target)
+    return data.replace(target, replacement), count
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", default=DEFAULT_REPO)
@@ -406,6 +421,13 @@ def main():
     shutil.rmtree(jni, ignore_errors=True)
     os.makedirs(jni)
     total = 0
+    patched = 0
+    for name in list(bundle):
+        bundle[name], n = patch_paths(bundle[name])
+        patched += n
+    log("  DNS settings path redirected in %d place(s)" % patched)
+    if patched == 0:
+        log("  warning: resolv.conf path not found; internet names may not resolve inside machines")
     for name, data in sorted(bundle.items()):
         with open(os.path.join(jni, name), "wb") as f:
             f.write(data)

@@ -87,6 +87,20 @@ Filename: e.deb
             self.assertLessEqual(len(fq.android_name(n)), len(n))
 
 
+class PathPatchTests(unittest.TestCase):
+    def test_resolv_path_redirect(self):
+        data = b"xx" + fq.TERMUX_RESOLV + b"\0yy" + fq.TERMUX_RESOLV + b"\0"
+        out, n = fq.patch_paths(data)
+        self.assertEqual(n, 2)
+        self.assertEqual(len(out), len(data))
+        self.assertIn(fq.APP_RESOLV + b"\0", out)
+        self.assertNotIn(fq.TERMUX_RESOLV, out)
+        # a longer string that only starts with the path is left alone
+        other = fq.TERMUX_RESOLV + b".bak\0"
+        self.assertEqual(fq.patch_paths(other), (other, 0))
+        self.assertLessEqual(len(fq.APP_RESOLV), len(fq.TERMUX_RESOLV))
+
+
 class DebTests(unittest.TestCase):
     def test_extract(self):
         deb = make_deb([("bin/qemu-img", b"\x7fELFdata"), ("lib/libx.so.1", "->libx.so.1.0"),

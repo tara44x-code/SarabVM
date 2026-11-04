@@ -10,6 +10,7 @@ import android.os.Looper;
 import com.sarab.vm.core.EmulatorSettings;
 import com.sarab.vm.core.QemuCommandBuilder;
 import com.sarab.vm.core.QmpClient;
+import com.sarab.vm.core.ResolvConf;
 import com.sarab.vm.core.StoragePaths;
 import com.sarab.vm.core.VmConfig;
 import com.sarab.vm.data.QemuEnvironment;
@@ -165,6 +166,7 @@ public final class VmManager {
             settings.accel = EmulatorSettings.Accel.TCG; // KVM not usable on this phone
         }
         if (c.shareFolder) prepareSharedFolder(settings);
+        writeDnsServers();
         int display = allocateDisplay();
         QemuCommandBuilder builder = env.builder();
         AudioPipe audio = null;
@@ -235,6 +237,31 @@ public final class VmManager {
         }
         c.diskPath = disk.getAbsolutePath();
         repo.save(c);
+    }
+
+    /**
+     * QEMU's virtual network forwards the machine's name lookups to the servers in
+     * files/resolv.conf (the QEMU libraries are patched to read that file). Refreshed before
+     * every start so it follows Wi-Fi / mobile data changes.
+     */
+    private void writeDnsServers() {
+        java.util.List<String> servers = new java.util.ArrayList<>();
+        try {
+            android.net.ConnectivityManager cm = app.getSystemService(android.net.ConnectivityManager.class);
+            android.net.Network net = cm == null ? null : cm.getActiveNetwork();
+            android.net.LinkProperties lp = net == null ? null : cm.getLinkProperties(net);
+            if (lp != null) {
+                for (java.net.InetAddress a : lp.getDnsServers()) servers.add(a.getHostAddress());
+            }
+        } catch (RuntimeException ignored) {
+            // no permission or no network: public servers are used
+        }
+        File f = new File(app.getFilesDir(), "resolv.conf");
+        try (OutputStream o = new FileOutputStream(f)) {
+            o.write(ResolvConf.render(servers).getBytes(StandardCharsets.UTF_8));
+        } catch (IOException ignored) {
+            // without it the machine still has internet by IP address
+        }
     }
 
     private void prepareSharedFolder(EmulatorSettings settings) throws IOException {
