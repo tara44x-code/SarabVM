@@ -160,8 +160,14 @@ public final class QemuCommandBuilder {
             }
         }
         if (sharing(c, s)) {
+            // A USB stick, not an IDE disk: QEMU's IDE disks cannot be read-only
+            // ("Block node is read-only"). USB 2.0 (EHCI) works in Windows XP+ and Linux.
+            a.add("-device");
+            a.add("usb-ehci,id=ehci");
             a.add("-drive");
-            a.add(sharedDrive(c, s) + ",if=ide,index=3,media=disk");
+            a.add(sharedDrive(c, s) + ",if=none,id=shared0");
+            a.add("-device");
+            a.add("usb-storage,bus=ehci.0,drive=shared0");
         }
         a.add("-boot");
         a.add(notEmpty(c.isoPath) && isOpticalImage(c.isoPath) ? "order=dc,menu=off" : "order=c,menu=off");

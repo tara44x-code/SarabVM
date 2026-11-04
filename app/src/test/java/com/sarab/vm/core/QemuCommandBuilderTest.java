@@ -140,12 +140,15 @@ public class QemuCommandBuilderTest {
         assertFalse("off by default", joined(builder.build(c, s, 0)).contains("fat:"));
 
         c.shareFolder = true;
-        assertTrue(joined(builder.build(c, s, 0)).contains(
-                "file=fat:/storage/emulated/0/Sarab,format=raw,readonly=on,if=ide,index=3,media=disk"));
+        String ro = joined(builder.build(c, s, 0));
+        assertTrue(ro.contains("-device usb-ehci,id=ehci"));
+        assertTrue(ro.contains("file=fat:/storage/emulated/0/Sarab,format=raw,readonly=on,if=none,id=shared0"));
+        assertTrue(ro.contains("-device usb-storage,bus=ehci.0,drive=shared0"));
+        assertFalse("never a read-only IDE disk", ro.contains("readonly=on,if=ide"));
 
         c.shareWritable = true;
         assertTrue(joined(builder.build(c, s, 0)).contains(
-                "file=fat:rw:/storage/emulated/0/Sarab,format=raw,if=ide,index=3,media=disk"));
+                "file=fat:rw:/storage/emulated/0/Sarab,format=raw,if=none,id=shared0"));
     }
 
     @Test
