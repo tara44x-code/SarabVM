@@ -44,6 +44,10 @@ jobs:
             done
           done
           ls app/src/main/jniLibs/arm64-v8a | grep -i -E "audio|snd|pulse" || echo "no separate audio libs"
+          echo "== resolv.conf paths in bundled libraries"
+          for f in app/src/main/jniLibs/arm64-v8a/*.so; do
+            grep -aoE "[ -~]{0,60}resolv\.conf" "$f" | sed "s|^|  $(basename $f): |" || true
+          done
 
       - name: Run unit tests and build the APK
         run: |
