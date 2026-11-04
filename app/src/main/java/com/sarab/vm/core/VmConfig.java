@@ -52,8 +52,31 @@ public final class VmConfig {
     public String portForwards = "";
     /** Sound card in the machine; the app plays what it outputs (experimental). */
     public boolean sound;
+    /**
+     * Performance mode: larger translation cache, and for Linux guests the faster virtio disk and
+     * network. On for new machines; off for machines made before it existed (their installed
+     * Linux may expect the old IDE disk).
+     */
+    public boolean fastMode = true;
+    /** Run x86 guests on all CPU cores (multi-threaded TCG). Faster, but QEMU marks it unsafe. */
+    public boolean allCores;
 
     public static final String SNAPSHOT_NAME = "sarab";
+
+    /** Installed to its disk and still has the installer image attached. */
+    public boolean looksInstalledWithIso() {
+        return diskPath != null && !diskPath.isEmpty() && isoPath != null && !isoPath.isEmpty();
+    }
+
+    /** Suggested disk size (GB) when installing this kind of system from an ISO. */
+    public static int suggestedInstallDiskGb(OsType type) {
+        switch (type) {
+            case WINDOWS: return 32;
+            case ANDROID: return 8;
+            case LINUX: return 16;
+            default: return 16;
+        }
+    }
 
     public boolean canSaveState() {
         return diskPath != null && !diskPath.isEmpty() && !(shareFolder && shareWritable);
@@ -95,6 +118,8 @@ public final class VmConfig {
         p.setProperty("snapshotSaved", Boolean.toString(snapshotSaved));
         p.setProperty("portForwards", portForwards == null ? "" : portForwards);
         p.setProperty("sound", Boolean.toString(sound));
+        p.setProperty("fastMode", Boolean.toString(fastMode));
+        p.setProperty("allCores", Boolean.toString(allCores));
         return p;
     }
 
@@ -115,6 +140,8 @@ public final class VmConfig {
         c.snapshotSaved = Boolean.parseBoolean(p.getProperty("snapshotSaved", "false"));
         c.portForwards = p.getProperty("portForwards", "");
         c.sound = Boolean.parseBoolean(p.getProperty("sound", "false"));
+        c.fastMode = Boolean.parseBoolean(p.getProperty("fastMode", "false"));
+        c.allCores = Boolean.parseBoolean(p.getProperty("allCores", "false"));
         return c;
     }
 

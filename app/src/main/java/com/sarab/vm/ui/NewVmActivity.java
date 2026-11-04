@@ -52,6 +52,11 @@ public final class NewVmActivity extends Activity {
     private VmRepository repo;
     private VmConfig config;
     private boolean editing;
+    /** "Install a system from ISO onto a virtual disk": the disk is required. */
+    private boolean installMode;
+    public static final String EXTRA_INSTALL = "install";
+    private TextView ejectButton;
+    private Switch allCoresSwitch;
     private boolean nameEdited;
     private int ramMax;
     private String originalMachine;
@@ -86,6 +91,7 @@ public final class NewVmActivity extends Activity {
             originalMachine = machineKey(existing);
         } else {
             config = new VmConfig();
+            installMode = getIntent().getBooleanExtra(EXTRA_INSTALL, false);
             EmulatorSettings s = new SettingsStore(this).load();
             config.diskSizeGb = s.defaultDiskGb;
             applyTypeDefaults(VmConfig.OsType.LINUX);
@@ -111,9 +117,10 @@ public final class NewVmActivity extends Activity {
 
     private void applyTypeDefaults(VmConfig.OsType type) {
         config.osType = type;
+        if (installMode) config.diskSizeGb = VmConfig.suggestedInstallDiskGb(type);
         switch (type) {
             case WINDOWS:
-                if (!nameEdited) config.name = "Windows PE";
+                if (!nameEdited) config.name = installMode ? "Windows" : "Windows PE";
                 config.ramMb = 2048;
                 config.arch = VmConfig.Arch.X86_64;
                 break;
@@ -145,7 +152,8 @@ public final class NewVmActivity extends Activity {
         TextView back = Ui.iconButton(this, Ui.backGlyph(), Lang.t("رجوع"), Ui.TEXT);
         back.setOnClickListener(v -> finish());
         header.addView(back);
-        TextView title = Ui.text(this, editing ? Lang.t("تعديل النظام") : Lang.t("نظام جديد"), 22, Ui.TEXT, true);
+        TextView title = Ui.text(this, editing ? Lang.t("تعديل النظام")
+                : installMode ? Lang.t("تثبيت نظام") : Lang.t("نظام جديد"), 22, Ui.TEXT, true);
         title.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
         header.addView(title);
         content.addView(header);
@@ -154,6 +162,14 @@ public final class NewVmActivity extends Activity {
         LinearLayout form = Ui.column(this);
         form.setPadding(Ui.dp(this, 20), Ui.dp(this, 4), Ui.dp(this, 20), Ui.dp(this, 120));
 
+        if (installMode) {
+            TextView banner = Ui.text(this, Lang.t("طريقة التثبيت:\n1. اختر النوع وملف ISO للتثبيت، واترك القرص بالحجم المقترح.\n2. شغّل النظام وأكمل التثبيت كأنه كمبيوتر حقيقي.\n3. بعد ما ينتهي، اضغط مطولًا على النظام ← «انتهى التثبيت». يصير يقلع من القرص بدون ISO.\nملاحظة: إذا ظهرت «Press any key to boot from CD» بعد إعادة التشغيل فلا تضغط شيئًا، فيكمل من القرص."),
+                    13, Ui.TEXT_2, false);
+            banner.setLineSpacing(0, 1.15f);
+            banner.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
+            banner.setBackground(Ui.rounded(this, Ui.ACCENT_BG, 14, Ui.ACCENT, 1));
+            form.addView(banner, Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 4, 0, 0));
+        }
         form.addView(sectionLabel(Lang.t("نوع النظام")));
         typeGrid = Ui.column(this);
         form.addView(typeGrid);
@@ -194,6 +210,14 @@ public final class NewVmActivity extends Activity {
         pickerText.addView(Ui.mono(this, ".iso · .img · .qcow2", 11, Ui.MUTED));
         picker.addView(pickerText, Ui.weight(1));
         form.addView(picker);
+        ejectButton = Ui.text(this, Lang.t("إزالة ملف الصورة من هذا النظام (الإقلاع من القرص)"), 13, Ui.SAND, true);
+        ejectButton.setPadding(Ui.dp(this, 4), Ui.dp(this, 10), Ui.dp(this, 4), Ui.dp(this, 4));
+        ejectButton.setClickable(true);
+        ejectButton.setOnClickListener(v -> {
+            config.isoPath = "";
+            refreshImage();
+        });
+        form.addView(ejectButton);
 
         form.addView(sectionLabel(Lang.t("الموارد")));
         LinearLayout res = Ui.column(this);
@@ -260,6 +284,25 @@ public final class NewVmActivity extends Activity {
         form.addView(diskRow);
         diskNote = Ui.text(this, "", 12, Ui.MUTED, false);
         form.addView(diskNote, Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 6, 0, 0));
+
+        form.addView(sectionLabel(Lang.t("الأداء")));
+        LinearLayout perf = Ui.column(this);
+        perf.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 10));
+        perf.setBackground(Ui.rounded(this, Ui.SURFACE, 18, Ui.BORDER, 1));
+        Switch fastSwitch = new Switch(this);
+        fastSwitch.setChecked(config.fastMode);
+        fastSwitch.setOnCheckedChangeListener((b, on) -> config.fastMode = on);
+        perf.addView(switchRow(Lang.t("وضع الأداء (موصى به)"), fastSwitch));
+        perf.addView(Ui.text(this, Lang.t("ذاكرة ترجمة أكبر للمعالج، وقرص وشبكة أسرع (virtio) لأنظمة لينكس. لنظام لينكس مثبّت قديمًا بدون هذا الوضع: إذا لم يعد يقلع، أطفئ الخيار."),
+                12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 2, 0, 6));
+        perf.addView(Ui.divider(this));
+        allCoresSwitch = new Switch(this);
+        allCoresSwitch.setChecked(config.allCores);
+        allCoresSwitch.setOnCheckedChangeListener((b, on) -> config.allCores = on);
+        perf.addView(switchRow(Lang.t("استخدام كل أنوية المعالج (تجريبي)"), allCoresSwitch));
+        perf.addView(Ui.text(this, Lang.t("لأنظمة x86 مثل ويندوز: أسرع بكثير مع أكثر من نواة، لكن QEMU يعدّه غير آمن تمامًا، فقد يتجمد النظام أو يظهر خطأ نادرًا. أنظمة ARM تستخدم كل الأنوية أصلًا."),
+                12, Ui.MUTED, false), Ui.margins(this, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 2, 0, 0));
+        form.addView(perf);
 
         form.addView(sectionLabel(Lang.t("الصوت")));
         LinearLayout soundBox = Ui.column(this);
@@ -394,6 +437,9 @@ public final class NewVmActivity extends Activity {
     }
 
     private void refreshImage() {
+        boolean hasIso = config.isoPath != null && !config.isoPath.isEmpty();
+        boolean hasDisk = config.diskPath != null && !config.diskPath.isEmpty() && new File(config.diskPath).isFile();
+        if (ejectButton != null) ejectButton.setVisibility(editing && hasIso && hasDisk ? View.VISIBLE : View.GONE);
         if (config.isoPath == null || config.isoPath.isEmpty()) {
             imageLabel.setText(Lang.t("اختر ملف ISO أو IMG"));
         } else {
@@ -414,6 +460,7 @@ public final class NewVmActivity extends Activity {
     }
 
     private void refreshArch() {
+        if (allCoresSwitch != null) allCoresSwitch.setEnabled(config.arch != VmConfig.Arch.AARCH64);
         archRow.removeAllViews();
         for (VmConfig.Arch a : VmConfig.Arch.values()) {
             boolean on = config.arch == a;
@@ -546,6 +593,10 @@ public final class NewVmActivity extends Activity {
             Toast.makeText(this, Lang.t("تغيّرت مواصفات النظام، لذلك سيبدأ من جديد بدل الحالة المحفوظة"), Toast.LENGTH_LONG).show();
         }
         List<String> errors = config.validate();
+        if (installMode) {
+            if (config.isoPath == null || config.isoPath.isEmpty()) errors.add(Lang.t("التثبيت يحتاج ملف ISO للنظام"));
+            if (config.diskSizeGb <= 0) errors.add(Lang.t("التثبيت يحتاج قرصًا صلبًا وهميًا، اختر حجمًا له"));
+        }
         if (!errors.isEmpty()) {
             new AlertDialog.Builder(this).setTitle(Lang.t("أكمل البيانات"))
                     .setMessage(String.join("\n", errors))

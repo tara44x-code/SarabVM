@@ -154,10 +154,13 @@ public final class MainActivity extends Activity implements VmManager.Listener {
     private void chooseNewSource() {
         new AlertDialog.Builder(this)
                 .setTitle(Lang.t("نظام جديد"))
-                .setItems(new String[]{Lang.t("من ملف ISO أو IMG على هاتفي"), Lang.t("تحميل نظام جاهز (Alpine، Debian، Tiny Core)"),
+                .setItems(new String[]{Lang.t("تثبيت نظام من ISO على قرص وهمي (ويندوز، لينكس…)"),
+                        Lang.t("تشغيل ملف ISO أو IMG مباشرة (بدون تثبيت)"),
+                        Lang.t("تحميل نظام جاهز (Alpine، Debian، Tiny Core)"),
                         Lang.t("استيراد نظام مصدَّر (.sarab)")}, (d, which) -> {
-                    if (which == 0) startActivity(new Intent(this, NewVmActivity.class));
-                    else if (which == 1) startActivity(new Intent(this, OsStoreActivity.class));
+                    if (which == 0) startActivity(new Intent(this, NewVmActivity.class).putExtra(NewVmActivity.EXTRA_INSTALL, true));
+                    else if (which == 1) startActivity(new Intent(this, NewVmActivity.class));
+                    else if (which == 2) startActivity(new Intent(this, OsStoreActivity.class));
                     else startImport();
                 })
                 .show();
@@ -311,6 +314,10 @@ public final class MainActivity extends Activity implements VmManager.Listener {
                 startVm(c);
             });
         }
+        if (!running && c.looksInstalledWithIso()) {
+            labels.add(Lang.t("انتهى التثبيت — الإقلاع من القرص بدون ISO"));
+            actions.add(() -> finishInstall(c));
+        }
         labels.add(Lang.t("تعديل"));
         actions.add(() -> whenStopped(c, () -> startActivity(VmManager.withVm(new Intent(this, NewVmActivity.class), c.id))));
         labels.add(Lang.t("نسخة مكررة"));
@@ -325,6 +332,34 @@ public final class MainActivity extends Activity implements VmManager.Listener {
                 .setTitle(c.name)
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
                 .show();
+    }
+
+    /** Detaches the installer image; the machine then boots from its own disk. */
+    private void finishInstall(VmConfig c) {
+        File iso = new File(c.isoPath);
+        boolean sharedByOthers = false;
+        for (VmConfig other : repo.list()) {
+            if (!other.id.equals(c.id) && c.isoPath.equals(other.isoPath)) sharedByOthers = true;
+        }
+        boolean canDelete = iso.isFile() && !sharedByOthers
+                && iso.getParentFile() != null && iso.getParentFile().equals(new ImageStore(this).directory());
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
+                .setTitle(Lang.t("انتهى التثبيت؟"))
+                .setMessage(Lang.t("سيُزال ملف ISO من هذا النظام ويقلع من القرص الوهمي مباشرة. تأكد أن التثبيت اكتمل وأن النظام أقلع من القرص مرة واحدة على الأقل.")
+                        + (canDelete ? "\n\n" + Lang.t("تقدر أيضًا تحذف ملف ISO لتوفير ") + Ui.formatSize(iso.length()) + "." : ""))
+                .setNegativeButton(Lang.t("إلغاء"), null)
+                .setPositiveButton(Lang.t("إزالة فقط"), (d, w) -> detachIso(c, null));
+        if (canDelete) b.setNeutralButton(Lang.t("إزالة وحذف الملف"), (d, w) -> detachIso(c, iso));
+        b.show();
+    }
+
+    private void detachIso(VmConfig c, File deleteFile) {
+        c.isoPath = "";
+        c.snapshotSaved = false; // a saved state belongs to the setup with the ISO
+        saveQuietly(c);
+        if (deleteFile != null) new ImageStore(this).delete(deleteFile);
+        refresh();
+        Toast.makeText(this, Lang.t("تم ✓ النظام يقلع الآن من القرص"), Toast.LENGTH_LONG).show();
     }
 
     private void whenStopped(VmConfig c, Runnable r) {

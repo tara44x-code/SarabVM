@@ -21,6 +21,20 @@ public final class QemuCommandBuilder {
      * a 256 MB translation cache keeps memory use reasonable on phones.
      */
     static final String TCG = "tcg,tb-size=256";
+    /** Performance mode: a 1 GB cache means code is translated less often. */
+    static final String TCG_FAST = "tcg,tb-size=1024";
+
+    static String tcg(VmConfig c) {
+        String base = c.fastMode ? TCG_FAST : TCG;
+        // x86 on ARM: QEMU only uses one host core unless asked, because the memory models differ
+        boolean x86 = c.arch != VmConfig.Arch.AARCH64;
+        return x86 && c.allCores ? base + ",thread=multi" : base;
+    }
+
+    /** virtio disk/network: much faster than IDE/e1000, built into Linux; Windows would need drivers. */
+    static boolean useVirtio(VmConfig c) {
+        return c.fastMode && c.osType == VmConfig.OsType.LINUX;
+    }
 
     private final File nativeLibDir;
     private final File dataDir;
@@ -118,7 +132,7 @@ public final class QemuCommandBuilder {
         a.add("-machine");
         a.add("pc");
         a.add("-accel");
-        a.add(TCG);
+        a.add(tcg(c));
         a.add("-cpu");
         a.add(c.arch == VmConfig.Arch.I386 ? "pentium3" : "max");
         a.add("-vga");
@@ -134,7 +148,7 @@ public final class QemuCommandBuilder {
         boolean hasDisk = notEmpty(c.diskPath);
         if (hasDisk) {
             a.add("-drive");
-            a.add("file=" + escape(c.diskPath) + ",if=ide,index=0,media=disk,format=qcow2");
+            a.add("file=" + escape(c.diskPath) + (useVirtio(c) ? ",if=virtio" : ",if=ide,index=0,media=disk") + ",format=qcow2");
         }
         if (notEmpty(c.isoPath)) {
             if (isOpticalImage(c.isoPath)) {
@@ -156,7 +170,7 @@ public final class QemuCommandBuilder {
             a.add("-netdev");
             a.add("user,id=net0" + PortForwards.parse(c.portForwards).toQemuSuffix());
             a.add("-device");
-            a.add("e1000,netdev=net0");
+            a.add(useVirtio(c) ? "virtio-net-pci,netdev=net0" : "e1000,netdev=net0");
         } else {
             a.add("-nic");
             a.add("none");
@@ -167,7 +181,7 @@ public final class QemuCommandBuilder {
         a.add("-machine");
         a.add("virt");
         a.add("-accel");
-        a.add(kvm ? "kvm" : TCG);
+        a.add(kvm ? "kvm" : tcg(c));
         a.add("-cpu");
         a.add(kvm ? "host" : "max");
         a.add("-bios");

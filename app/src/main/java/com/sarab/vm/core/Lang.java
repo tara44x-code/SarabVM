@@ -33,6 +33,25 @@ public final class Lang {
     }
 
     static {
+        m("إزالة فقط", "Remove only");
+        m("إزالة ملف الصورة من هذا النظام (الإقلاع من القرص)", "Remove the image from this system (boot from the disk)");
+        m("إزالة وحذف الملف", "Remove and delete the file");
+        m("استخدام كل أنوية المعالج (تجريبي)", "Use all CPU cores (experimental)");
+        m("الأداء", "Performance");
+        m("التثبيت يحتاج قرصًا صلبًا وهميًا، اختر حجمًا له", "Installing needs a virtual hard disk; choose a size for it");
+        m("التثبيت يحتاج ملف ISO للنظام", "Installing needs the system's ISO file");
+        m("انتهى التثبيت — الإقلاع من القرص بدون ISO", "Installation finished — boot from the disk without the ISO");
+        m("انتهى التثبيت؟", "Installation finished?");
+        m("تثبيت نظام", "Install a system");
+        m("تثبيت نظام من ISO على قرص وهمي (ويندوز، لينكس…)", "Install a system from ISO onto a virtual disk (Windows, Linux…)");
+        m("تشغيل ملف ISO أو IMG مباشرة (بدون تثبيت)", "Run an ISO or IMG file directly (no install)");
+        m("تقدر أيضًا تحذف ملف ISO لتوفير ", "You can also delete the ISO file to free ");
+        m("تم ✓ النظام يقلع الآن من القرص", "Done ✓ the system now boots from its disk");
+        m("ذاكرة ترجمة أكبر للمعالج، وقرص وشبكة أسرع (virtio) لأنظمة لينكس. لنظام لينكس مثبّت قديمًا بدون هذا الوضع: إذا لم يعد يقلع، أطفئ الخيار.", "A larger CPU translation cache, plus faster virtio disk and network for Linux. For a Linux installed earlier without this mode: if it no longer boots, turn this off.");
+        m("سيُزال ملف ISO من هذا النظام ويقلع من القرص الوهمي مباشرة. تأكد أن التثبيت اكتمل وأن النظام أقلع من القرص مرة واحدة على الأقل.", "The ISO will be removed from this system and it will boot straight from its virtual disk. Make sure the installation is complete and the system has booted from the disk at least once.");
+        m("طريقة التثبيت:\n1. اختر النوع وملف ISO للتثبيت، واترك القرص بالحجم المقترح.\n2. شغّل النظام وأكمل التثبيت كأنه كمبيوتر حقيقي.\n3. بعد ما ينتهي، اضغط مطولًا على النظام ← «انتهى التثبيت». يصير يقلع من القرص بدون ISO.\nملاحظة: إذا ظهرت «Press any key to boot from CD» بعد إعادة التشغيل فلا تضغط شيئًا، فيكمل من القرص.", "How to install:\n1. Choose the type and the installer ISO; keep the suggested disk size.\n2. Start the system and install it like a real computer.\n3. When done, long-press the system → \"Installation finished\". It then boots from the disk without the ISO.\nNote: if \"Press any key to boot from CD\" appears after a restart, press nothing and it continues from the disk.");
+        m("لأنظمة x86 مثل ويندوز: أسرع بكثير مع أكثر من نواة، لكن QEMU يعدّه غير آمن تمامًا، فقد يتجمد النظام أو يظهر خطأ نادرًا. أنظمة ARM تستخدم كل الأنوية أصلًا.", "For x86 systems like Windows: much faster with several cores, but QEMU does not consider it fully safe, so the system may rarely freeze or show an error. ARM systems already use all cores.");
+        m("وضع الأداء (موصى به)", "Performance mode (recommended)");
         m("الصوت", "Sound");
         m("تشغيل صوت النظام على الهاتف (تجريبي)", "Play the system's sound on the phone (experimental)");
         m("يضيف بطاقة صوت للنظام. يعمل مع لينكس وويندوز الكامل. Windows PE غالبًا بدون تعريف صوت. يستهلك جزءًا من سرعة المعالج.", "Adds a sound card to the system. Works with Linux and full Windows; Windows PE usually has no sound driver. Uses some CPU.");

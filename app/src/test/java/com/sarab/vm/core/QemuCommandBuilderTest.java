@@ -43,7 +43,7 @@ public class QemuCommandBuilderTest {
         assertEquals("2048", after(a, "-m"));
         assertEquals("2", after(a, "-smp"));
         assertEquals("pc", after(a, "-machine"));
-        assertEquals("tcg,tb-size=256", after(a, "-accel"));
+        assertEquals("tcg,tb-size=1024", after(a, "-accel"));
         assertEquals("std", after(a, "-vga"));
         assertEquals("127.0.0.1:1", after(a, "-vnc"));
         assertEquals("tcp:127.0.0.1:4445,server=on,wait=off", after(a, "-qmp"));
@@ -62,6 +62,7 @@ public class QemuCommandBuilderTest {
         c.name = "Ubuntu, test";
         c.isoPath = "/files/isos/ubuntu.iso";
         c.diskPath = "/files/disks/u,1.qcow2";
+        c.fastMode = false; // a machine from before performance mode keeps the IDE disk
         EmulatorSettings s = new EmulatorSettings();
         s.network = false;
 
@@ -126,7 +127,7 @@ public class QemuCommandBuilderTest {
         EmulatorSettings s = new EmulatorSettings();
         s.accel = EmulatorSettings.Accel.KVM;
         List<String> a = builder.build(c, s, 0);
-        assertEquals("tcg,tb-size=256", after(a, "-accel"));
+        assertEquals("tcg,tb-size=1024", after(a, "-accel"));
     }
 
     @Test
@@ -159,6 +160,65 @@ public class QemuCommandBuilderTest {
         String all = joined(builder.build(c, s, 0));
         assertTrue(all.contains("file=fat:/sdcard/Sarab,format=raw,readonly=on,if=none,id=shared0"));
         assertTrue(all.contains("usb-storage,drive=shared0"));
+    }
+
+    @Test
+    public void performanceMode() {
+        VmConfig c = new VmConfig();
+        c.name = "deb";
+        c.osType = VmConfig.OsType.LINUX;
+        c.isoPath = "/d.iso";
+        c.diskPath = "/d.qcow2";
+        assertTrue("new machines are fast", c.fastMode);
+        List<String> a = builder.build(c, new EmulatorSettings(), 0);
+        String all = joined(a);
+        assertEquals("tcg,tb-size=1024", after(a, "-accel"));
+        assertTrue(all.contains("file=/d.qcow2,if=virtio,format=qcow2"));
+        assertTrue(all.contains("virtio-net-pci,netdev=net0"));
+
+        c.allCores = true;
+        assertEquals("tcg,tb-size=1024,thread=multi", after(builder.build(c, new EmulatorSettings(), 0), "-accel"));
+
+        c.osType = VmConfig.OsType.WINDOWS;
+        all = joined(builder.build(c, new EmulatorSettings(), 0));
+        assertTrue("windows keeps IDE (no virtio drivers)", all.contains("if=ide,index=0,media=disk,format=qcow2"));
+        assertTrue(all.contains("e1000,netdev=net0"));
+
+        c.fastMode = false;
+        c.allCores = false;
+        assertEquals("tcg,tb-size=256", after(builder.build(c, new EmulatorSettings(), 0), "-accel"));
+
+        // ARM guests are already multi-threaded by QEMU; allCores does not change them
+        VmConfig arm = new VmConfig();
+        arm.name = "a";
+        arm.arch = VmConfig.Arch.AARCH64;
+        arm.isoPath = "/a.iso";
+        arm.allCores = true;
+        assertEquals("tcg,tb-size=1024", after(builder.build(arm, new EmulatorSettings(), 0), "-accel"));
+
+        // machines saved before this version load with performance mode off
+        java.util.Properties old = c.toProperties();
+        old.remove("fastMode");
+        assertFalse(VmConfig.fromProperties(old).fastMode);
+        c.fastMode = true;
+        assertTrue(VmConfig.fromProperties(c.toProperties()).fastMode);
+    }
+
+    @Test
+    public void installHelpers() {
+        assertEquals(32, VmConfig.suggestedInstallDiskGb(VmConfig.OsType.WINDOWS));
+        assertEquals(16, VmConfig.suggestedInstallDiskGb(VmConfig.OsType.LINUX));
+        VmConfig c = new VmConfig();
+        c.isoPath = "/x.iso";
+        assertFalse(c.looksInstalledWithIso());
+        c.diskPath = "/x.qcow2";
+        assertTrue(c.looksInstalledWithIso());
+        c.isoPath = "";   // "installation finished": boots from the disk
+        c.name = "x";
+        assertTrue(c.validate().isEmpty());
+        List<String> a = builder.build(c, new EmulatorSettings(), 0);
+        assertEquals("order=c,menu=off", after(a, "-boot"));
+        assertFalse(joined(a).contains("media=cdrom"));
     }
 
     @Test
